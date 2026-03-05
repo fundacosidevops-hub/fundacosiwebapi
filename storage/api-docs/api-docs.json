@@ -6,80 +6,15 @@
     },
     "servers": [
         {
-            "url": "http://localhost:8000",
+            "url": "http://localhost:8000/",
             "description": "Servidor Local"
+        },
+        {
+            "url": "https://webapi.fundacosixxi.com",
+            "description": "Servidor Producción"
         }
     ],
     "paths": {
-        "/api/v1/register": {
-            "post": {
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Registrar nuevo usuario",
-                "operationId": "6796c44e1f6079c411abbfed066c5907",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "name",
-                                    "email",
-                                    "password"
-                                ],
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "example": "Juan"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "example": "juan@email.com"
-                                    },
-                                    "password": {
-                                        "type": "string",
-                                        "example": "123456"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Usuario creado correctamente",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "id": {
-                                            "type": "integer"
-                                        },
-                                        "name": {
-                                            "type": "string"
-                                        },
-                                        "email": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Error de validación",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/login": {
             "post": {
                 "tags": [
@@ -99,7 +34,7 @@
                                 "properties": {
                                     "email": {
                                         "type": "string",
-                                        "example": "juan@email.com"
+                                        "example": "test@fundacosixxi.com"
                                     },
                                     "password": {
                                         "type": "string",
@@ -121,6 +56,69 @@
                 }
             }
         },
+        "/api/v1/saveUser": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Guardar usuario",
+                "operationId": "31c02a2fbfefc40ae29d87aef7307687",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "role",
+                                    "positionsId",
+                                    "email"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Juan Perez"
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "example": "Administrador"
+                                    },
+                                    "positionsId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "juan@fundacosixxi.com"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "8095551234"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Usuario creado correctamente"
+                    },
+                    "400": {
+                        "description": "Datos inválidos"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/v1/profile": {
             "get": {
                 "tags": [
@@ -132,8 +130,49 @@
                     "200": {
                         "description": "Perfil obtenido correctamente"
                     },
-                    "500": {
+                    "401": {
                         "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/roles": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Obtener roles",
+                "operationId": "02c0d86e2afb7eedfc4ded46d8dd1cdc",
+                "responses": {
+                    "200": {
+                        "description": "Roles obtenidos correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/positions": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Obtener posiciones",
+                "operationId": "e0fe95909848168bc9cdddc8157ce195",
+                "responses": {
+                    "200": {
+                        "description": "Roles obtenidos correctamente"
                     },
                     "401": {
                         "description": "No autorizado"
@@ -181,7 +220,7 @@
     "tags": [
         {
             "name": "Auth",
-            "description": "Endpoints de autenticación"
+            "description": "Endpoints de usuarios"
         }
     ]
 }

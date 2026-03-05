@@ -2,142 +2,178 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Models\Positions;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Tymon\JWTAuth\Facades\JWTAuth;
 use OpenApi\Attributes as OA;
+use Spatie\Permission\Models\Role;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 #[OA\Tag(
-    name: "Auth",
-    description: "Endpoints de autenticación"
+    name: 'Auth',
+    description: 'Endpoints de usuarios'
 )]
 class AuthController extends Controller
 {
     #[OA\Post(
-        path: "/api/v1/register",
-        summary: "Registrar nuevo usuario",
-        tags: ["Auth"],
+        path: '/api/v1/login',
+        summary: 'Login usuario',
+        tags: ['Auth'],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ["name", "email", "password"],
+                required: ['email', 'password'],
                 properties: [
-                    new OA\Property(property: "name", type: "string", example: "Juan"),
-                    new OA\Property(property: "email", type: "string", example: "juan@email.com"),
-                    new OA\Property(property: "password", type: "string", example: "123456"),
+                    new OA\Property(property: 'email', type: 'string', example: 'test@fundacosixxi.com'),
+                    new OA\Property(property: 'password', type: 'string', example: '123456'),
                 ]
             )
         ),
         responses: [
-            new OA\Response(
-                response: 201,
-                description: "Usuario creado correctamente",
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: "name", type: "string"),
-                        new OA\Property(property: "email", type: "string"),
-                    ]
-                )
-            ),
-            new OA\Response(
-                response: 422,
-                description: "Error de validación",
-                content: new OA\JsonContent()
-            ),
-        ]
-    )]
-    public function register(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
-            'role' => 'required|exists:roles,name'
-        ]);
-
-        $user = User::create([
-            'avatar' => $request->avatar,
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'phone' => $request->phone,
-            'is_active' => $request->is_active
-        ]);
-
-        $user->assignRole($request->role);
-        return response()->json($user, 201);
-    }
-
-    #[OA\Post(
-        path: "/api/v1/login",
-        summary: "Login usuario",
-        tags: ["Auth"],
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                required: ["email", "password"],
-                properties: [
-                    new OA\Property(property: "email", type: "string", example: "juan@email.com"),
-                    new OA\Property(property: "password", type: "string", example: "123456"),
-                ]
-            )
-        ),
-        responses: [
-            new OA\Response(response: 200, description: "Login exitoso"),
-            new OA\Response(response: 401, description: "Credenciales inválidas"),
+            new OA\Response(response: 200, description: 'Login exitoso'),
+            new OA\Response(response: 401, description: 'Credenciales inválidas'),
         ]
     )]
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
 
-        if (!$token = Auth::guard('api')->attempt($credentials)) {
+        if (! $token = Auth::guard('api')->attempt($credentials)) {
             return response()->json(['error' => 'Credenciales inválidas'], 401);
         }
 
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
-            'expires_in' => JWTAuth::factory()->getTTL() * 60
+            'expires_in' => JWTAuth::factory()->getTTL() * 60,
         ]);
     }
 
-    #[OA\Get(
-        path: "/api/v1/profile",
-        summary: "Obtener perfil del usuario autenticado",
-        tags: ["Auth"],
-        security: [["bearerAuth" => []]],
+    #[OA\Post(
+        path: '/api/v1/saveUser',
+        summary: 'Guardar usuario',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['name', 'role', 'positionsId', 'email'],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Juan Perez'),
+                    new OA\Property(property: 'role', type: 'string', example: 'Administrador'),
+                    new OA\Property(property: 'positionsId', type: 'integer', example: 1),
+                    new OA\Property(property: 'email', type: 'string', example: 'juan@fundacosixxi.com'),
+                    new OA\Property(property: 'phone', type: 'string', example: '8095551234'),
+                ]
+            )
+        ),
         responses: [
-            new OA\Response(response: 200, description: "Perfil obtenido correctamente"),
-            new OA\Response(response: 401, description: "No autorizado"),
+            new OA\Response(response: 201, description: 'Usuario creado correctamente'),
+            new OA\Response(response: 400, description: 'Datos inválidos'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function saveUser(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:50',
+            'role' => 'required|string',
+            'positionsId' => 'required|integer',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|max:12',
+        ]);
+
+        $user = User::create([
+            'avatar' => 'avatar.jpg',
+            'name' => $validated['name'],
+            'role' => $validated['role'],
+            'positions_id' => $validated['positionsId'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'is_active' => 1,
+        ]);
+
+        return response()->json([
+            'message' => 'Usuario creado correctamente',
+            'data' => $user,
+        ], 201);
+    }
+
+    #[OA\Get(
+        path: '/api/v1/profile',
+        summary: 'Obtener perfil del usuario autenticado',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Perfil obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
         ]
     )]
     public function profile()
     {
-        $user = auth()->user();
+        $user = auth()->user()->load('position');
 
         return response()->json([
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'positionId' => $user->position?->id,
             'phone' => $user->phone,
             'avatar' => $user->avatar,
-            'roles' => $user->getRoleNames(),  
-            'permissions' => $user->getAllPermissions()->pluck('name'),  
+            'roles' => $user->getRoleNames()[0],
+            'permissions' => $user->getAllPermissions()->pluck('name'),
+        ]);
+    }
+
+    #[OA\Get(
+        path: '/api/v1/roles',
+        summary: 'Obtener roles',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Roles obtenidos correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function roles()
+    {
+        $resp = Role::all();
+
+        return response()->json([
+            'message' => 'Roles obtenidos correctamente',
+            'data' => $resp,
+        ]);
+    }
+
+    #[OA\Get(
+        path: '/api/v1/positions',
+        summary: 'Obtener posiciones',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Roles obtenidos correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function positions()
+    {
+        $resp = Positions::all();
+
+        return response()->json([
+            'message' => 'Posiciones obtenidas correctamente',
+            'data' => $resp,
         ]);
     }
 
     #[OA\Post(
-        path: "/api/v1/logout",
-        summary: "Cerrar sesión",
-        tags: ["Auth"],
-        security: [["bearerAuth" => []]],
+        path: '/api/v1/logout',
+        summary: 'Cerrar sesión',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
         responses: [
-            new OA\Response(response: 200, description: "Sesión cerrada correctamente"),
-            new OA\Response(response: 401, description: "No autorizado"),
+            new OA\Response(response: 200, description: 'Sesión cerrada correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
         ]
     )]
     public function logout()
@@ -145,7 +181,7 @@ class AuthController extends Controller
         JWTAuth::invalidate(JWTAuth::getToken());
 
         return response()->json([
-            'message' => 'Sesión cerrada correctamente'
+            'message' => 'Sesión cerrada correctamente',
         ]);
     }
 }
