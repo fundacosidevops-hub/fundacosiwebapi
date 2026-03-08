@@ -17,8 +17,7 @@ class User extends Authenticatable implements JWTSubject
         'avatar',
         'name',
         'email',
-        'role',
-        'positions_id',
+        'position_id',
         'password',
         'phone',
         'is_active',
@@ -35,6 +34,31 @@ class User extends Authenticatable implements JWTSubject
     public function position()
     {
         return $this->belongsTo(Positions::class);
+    }
+
+    public function maritalStatus()
+    {
+        return $this->belongsTo(MaritalStatuses::class);
+    }
+
+    public function insurance()
+    {
+        return $this->belongsTo(Insurances::class);
+    }
+
+    public function documentType()
+    {
+        return $this->belongsTo(DocumentType::class);
+    }
+
+    public function nationalities()
+    {
+        return $this->belongsTo(Nationalities::class);
+    }
+
+    public function userType()
+    {
+        return $this->belongsTo(UserType::class);
     }
 
     public function getJWTIdentifier()

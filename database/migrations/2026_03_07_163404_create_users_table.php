@@ -17,11 +17,30 @@ return new class extends Migration
             $table->string('avatar')->nullable();
             $table->string('name');
             $table->string('email')->unique();
+
             $table->foreignId('position_id')->nullable()->constrained('positions');
+
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+
             $table->string('phone')->nullable();
+
+            // Nuevos campos
+            $table->string('policy')->nullable();
+            $table->enum('gender', ['Masculino', 'Femenino'])->nullable();
+            $table->foreignId('marital_status_id')->nullable()->constrained('marital_statuses');
+            $table->foreignId('nationalities_id')->nullable()->constrained('nationalities');
+            $table->foreignId('user_type_id')->nullable()->constrained('user_types');
+            $table->date('birth_date')->nullable();
+
+            $table->foreignId('document_type_id')->nullable()->constrained('document_types');
+            $table->string('document_number')->nullable();
+
+            $table->foreignId('insurance_id')->nullable()->constrained('insurances');
+
             $table->boolean('is_active')->default(true);
+            $table->date('date_created')->nullable();
+            $table->integer('user_created')->nullable();
 
             $table->rememberToken();
             $table->timestamps();
@@ -48,8 +67,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

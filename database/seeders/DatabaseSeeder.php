@@ -18,11 +18,23 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             PositionSeeder::class,
+            DocumentTypeSeeder::class,
+            InsurancesSeeder::class,
+            MaritalStatusesSeeder::class,
+            UserTypeSeeder::class,
+            NationalitiesSeeder::class,
         ]);
         User::factory()->create([
             'name' => 'User Test',
             'email' => 'test@fundacosixxi.com',
             'position_id' => 4,
+            'gender' => 'Masculino',
+            'marital_status_id' => 1,
+            'nationalities_id' => 1,
+            'user_type_id' => 1,
+            'document_type_id' => 1,
+            'insurance_id' => 1,
+            'date_created' => now(),
             'password' => bcrypt('123456'),
         ])->assignRole('SuperAdmin');
     }

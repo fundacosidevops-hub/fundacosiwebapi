@@ -6,6 +6,7 @@ use App\Models\Positions;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use OpenApi\Attributes as OA;
 use Spatie\Permission\Models\Role;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -78,26 +79,37 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:50',
-            'role' => 'required|string',
-            'positionsId' => 'required|integer',
-            'email' => 'required|email|unique:users,email',
+            'roles' => 'required|string',
+            'positionId' => 'required|integer',
+            'email' => 'required|email',
             'phone' => 'nullable|string|max:12',
         ]);
 
-        $user = User::create([
-            'avatar' => 'avatar.jpg',
-            'name' => $validated['name'],
-            'role' => $validated['role'],
-            'positions_id' => $validated['positionsId'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-            'is_active' => 1,
-        ]);
+        $user = User::updateOrCreate(
+            ['email' => $validated['email']], // condición para buscar
+            [
+                'avatar' => 'avatar.jpg',
+                'name' => $validated['name'],
+                'position_id' => $validated['positionId'],
+                'phone' => $validated['phone'] ?? null,
+                'is_active' => 1,
+            ]
+        );
+
+        // solo asignar password si el usuario es nuevo
+        if ($user->wasRecentlyCreated) {
+            $user->password = Hash::make('TempPass123');
+            $user->save();
+        }
+
+        $user->syncRoles([$validated['roles']]);
 
         return response()->json([
-            'message' => 'Usuario creado correctamente',
+            'message' => $user->wasRecentlyCreated
+                ? 'Usuario creado correctamente'
+                : 'Usuario actualizado correctamente',
             'data' => $user,
-        ], 201);
+        ], 200);
     }
 
     #[OA\Get(

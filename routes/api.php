@@ -8,7 +8,7 @@ Route::prefix('v1')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
 
     Route::middleware('auth:api')->group(function () {
-        Route::get('saveUser', [AuthController::class, 'saveUser']);
+        Route::post('saveUser', [AuthController::class, 'saveUser']);
         Route::get('positions', [AuthController::class, 'positions']);
         Route::get('roles', [AuthController::class, 'roles']);
         Route::get('profile', [AuthController::class, 'profile']);
