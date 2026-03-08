@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
             MaritalStatusesSeeder::class,
             UserTypeSeeder::class,
             NationalitiesSeeder::class,
+            CatalogServicesSeeder::class,
+            MedicalStudySeeder::class,
         ]);
         User::factory()->create([
             'name' => 'User',

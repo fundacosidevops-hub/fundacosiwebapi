@@ -15,32 +15,26 @@ return new class extends Migration
             $table->id();
 
             $table->string('avatar')->nullable();
-            $table->string('name');
-            $table->string('last_name');
-            $table->string('email')->unique();
-
+            $table->string('name', 50);
+            $table->string('last_name', 50);
+            $table->string('email', 100)->unique();
             $table->foreignId('position_id')->nullable()->constrained('positions');
-
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-
-            $table->string('phone')->nullable();
-
-            // Nuevos campos
-            $table->string('policy')->nullable();
+            $table->string('phone', 15)->nullable();
+            $table->string('policy', 20)->nullable();
+            $table->string('exequatur', 11)->nullable();
+            $table->boolean('staff_physician')->default(true);
             $table->enum('gender', ['Masculino', 'Femenino'])->nullable();
             $table->foreignId('marital_status_id')->nullable()->constrained('marital_statuses');
             $table->foreignId('nationalities_id')->nullable()->constrained('nationalities');
             $table->foreignId('user_type_id')->nullable()->constrained('user_types');
             $table->date('birth_date')->nullable();
-
             $table->foreignId('document_type_id')->nullable()->constrained('document_types');
-            $table->string('document_number')->nullable();
-
+            $table->string('document_number', 25)->nullable();
             $table->foreignId('insurance_id')->nullable()->constrained('insurances');
-
             $table->boolean('is_active')->default(true);
-            $table->integer('user_created')->nullable();
+            $table->integer('created_user')->nullable();
 
             $table->rememberToken();
             $table->timestamps();
