@@ -10,8 +10,8 @@ class UserTypeSeeder extends Seeder
     public function run(): void
     {
         DB::table('user_types')->insert([
-            ['description' => 'Paciente'],
             ['description' => 'Empleado'],
+            ['description' => 'Paciente'],
         ]);
     }
 }
