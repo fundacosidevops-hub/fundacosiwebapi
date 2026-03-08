@@ -16,6 +16,7 @@ return new class extends Migration
 
             $table->string('avatar')->nullable();
             $table->string('name');
+            $table->string('last_name');
             $table->string('email')->unique();
 
             $table->foreignId('position_id')->nullable()->constrained('positions');
@@ -39,7 +40,6 @@ return new class extends Migration
             $table->foreignId('insurance_id')->nullable()->constrained('insurances');
 
             $table->boolean('is_active')->default(true);
-            $table->date('date_created')->nullable();
             $table->integer('user_created')->nullable();
 
             $table->rememberToken();

@@ -15,6 +15,7 @@ class PositionSeeder extends Seeder
             ['description' => 'Soporte Tecnico'],
             ['description' => 'Desarrollador de Aplicaciones'],
             ['description' => 'Cajero/a'],
+            ['description' => 'Sin cargo'],
         ]);
     }
 }

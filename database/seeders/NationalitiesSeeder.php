@@ -34,6 +34,7 @@ class NationalitiesSeeder extends Seeder
             ['description' => 'Puertorriqueña'],
             ['description' => 'Uruguaya'],
             ['description' => 'Venezolana'],
+            ['description' => 'Extranjero'],
         ]);
     }
 }

@@ -37,6 +37,7 @@ class InsurancesSeeder extends Seeder
             ['rnc' => '401516454', 'description' => 'SENASA, ARS', 'abbreviation' => 'SENAS', 'is_active' => true],
             ['rnc' => '101064129', 'description' => 'SIMAG, ARS', 'abbreviation' => 'SIMAG', 'is_active' => true],
             ['rnc' => null, 'description' => 'UNIVERSAL', 'abbreviation' => null, 'is_active' => true],
+            ['rnc' => null, 'description' => 'SIN DEFINIR', 'abbreviation' => null, 'is_active' => true],
 
         ]);
     }

@@ -974,8 +974,12 @@ namespace App\Models {
     /**
      * App\Models\Nationalities
      *
+     * @property string|null $description
+     * @property int $id
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
      * @property-read int|null $users_count
+     * @method static \Illuminate\Database\Eloquent\Builder<Nationalities>|Nationalities whereId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Nationalities>|Nationalities whereDescription($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Nationalities>|Nationalities newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<Nationalities>|Nationalities newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<Nationalities>|Nationalities query()
@@ -1616,15 +1620,13 @@ namespace App\Models {
      * @property \Illuminate\Support\Carbon|null $created_at
      * @property string|null $remember_token
      * @property mixed $user_created
-     * @property string|null $date_created
      * @property boolean $is_active
      * @property mixed $insurance_id
      * @property string|null $document_number
      * @property mixed $document_type_id
      * @property string|null $birth_date
-     * @property string|null $city
      * @property mixed $user_type_id
-     * @property string|null $nationality
+     * @property mixed $nationalities_id
      * @property mixed $marital_status_id
      * @property mixed $gender
      * @property string|null $policy
@@ -1657,15 +1659,13 @@ namespace App\Models {
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User wherePolicy($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereGender($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereMaritalStatusId($value)
-     * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereNationality($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereNationalitiesId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereUserTypeId($value)
-     * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereCity($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereBirthDate($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereDocumentTypeId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereDocumentNumber($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereInsuranceId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereIsActive($value)
-     * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereDateCreated($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereUserCreated($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereRememberToken($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereCreatedAt($value)

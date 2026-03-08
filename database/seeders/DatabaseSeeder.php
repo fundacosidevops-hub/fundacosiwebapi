@@ -25,7 +25,8 @@ class DatabaseSeeder extends Seeder
             NationalitiesSeeder::class,
         ]);
         User::factory()->create([
-            'name' => 'User Test',
+            'name' => 'User',
+            'last_name' => 'Test',
             'email' => 'test@fundacosixxi.com',
             'position_id' => 4,
             'gender' => 'Masculino',
@@ -34,7 +35,6 @@ class DatabaseSeeder extends Seeder
             'user_type_id' => 1,
             'document_type_id' => 1,
             'insurance_id' => 1,
-            'date_created' => now(),
             'password' => bcrypt('123456'),
         ])->assignRole('SuperAdmin');
     }
