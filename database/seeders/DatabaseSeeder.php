@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             NationalitiesSeeder::class,
             CatalogServicesSeeder::class,
             MedicalStudySeeder::class,
+            InsurancesRateSeeder::class,
         ]);
         User::factory()->create([
             'name' => 'User',

@@ -12,4 +12,9 @@ class MedicalStudy extends Model
     {
         return $this->belongsTo(CatalogServices::class);
     }
+
+    public function insurancesRate()
+    {
+        return $this->belongsTo(InsurancesRate::class);
+    }
 }
