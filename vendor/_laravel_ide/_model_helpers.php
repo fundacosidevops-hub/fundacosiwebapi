@@ -5,8 +5,26 @@ namespace App\Models {
     /**
      * App\Models\CatalogServices
      *
+     * @property bool $is_active
+     * @property bool $rate
+     * @property bool $pattern
+     * @property bool $emergency
+     * @property bool $internment
+     * @property bool $ambulatory
+     * @property bool $inventory
+     * @property string $description
+     * @property int $id
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MedicalStudy> $medicalStudies
      * @property-read int|null $medicalStudies_count
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereDescription($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereInventory($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereAmbulatory($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereInternment($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereEmergency($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices wherePattern($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereRate($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereIsActive($value)
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices query()
