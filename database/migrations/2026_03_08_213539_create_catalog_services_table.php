@@ -21,6 +21,8 @@ return new class extends Migration
             $table->boolean('pattern')->default(true);
             $table->boolean('rate')->default(true);
             $table->boolean('is_active')->default(true);
+            $table->integer('created_user')->nullable();
+            $table->timestamps();
         });
     }
 
