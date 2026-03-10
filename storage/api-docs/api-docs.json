@@ -206,6 +206,40 @@
                     }
                 ]
             }
+        },
+        "/api/v1/billing/user-info": {
+            "get": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Obtener datos del usuario a facturar",
+                "operationId": "6eed1c09ec6e81ad19fb2978678adffb",
+                "parameters": [
+                    {
+                        "name": "document",
+                        "in": "query",
+                        "description": "Documento del usuario",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "00107508525"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -221,6 +255,10 @@
         {
             "name": "Auth",
             "description": "Endpoints de usuarios"
+        },
+        {
+            "name": "Billing",
+            "description": "Endpoints de facturas"
         }
     ]
 }

@@ -5,6 +5,9 @@ namespace App\Models {
     /**
      * App\Models\CatalogServices
      *
+     * @property \Illuminate\Support\Carbon|null $updated_at
+     * @property \Illuminate\Support\Carbon|null $created_at
+     * @property mixed $created_user
      * @property bool $is_active
      * @property bool $rate
      * @property bool $pattern
@@ -25,6 +28,9 @@ namespace App\Models {
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices wherePattern($value)
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereRate($value)
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereIsActive($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereCreatedUser($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereCreatedAt($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereUpdatedAt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices query()

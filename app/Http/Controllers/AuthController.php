@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\UserInfoResource;
 use App\Models\Positions;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -124,18 +125,17 @@ class AuthController extends Controller
     )]
     public function profile()
     {
-        $user = auth()->user()->load('position');
-
-        return response()->json([
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'positionId' => $user->position?->id,
-            'phone' => $user->phone,
-            'avatar' => $user->avatar,
-            'roles' => $user->getRoleNames()[0],
-            'permissions' => $user->getAllPermissions()->pluck('name'),
+        $user = auth()->user()->load([
+            'position',
+            'nationalities',
+            'maritalStatus',
+            'documentType',
+            'insurance',
+            'userType',
+            'roles',
         ]);
+
+        return new UserInfoResource($user);
     }
 
     #[OA\Get(
