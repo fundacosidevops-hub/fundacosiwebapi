@@ -15,5 +15,6 @@ Route::prefix('v1')->group(function () {
         Route::get('profile', [AuthController::class, 'profile']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);
+        Route::get('billing/insurance', [BillingController::class, 'getInsurance']);
     });
 });

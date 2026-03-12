@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\UserInfoResource;
+use App\Models\Insurances;
 use App\Models\User;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -56,5 +57,20 @@ class BillingController extends Controller
         }
 
         return new UserInfoResource($user);
+    }
+
+    #[OA\Get(
+        path: '/api/v1/billing/insurance',
+        summary: 'Obtener todos los seguros a facturar',
+        tags: ['Billing'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getInsurance()
+    {
+        return response()->json(Insurances::all());
     }
 }

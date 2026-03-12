@@ -240,6 +240,40 @@
                     }
                 ]
             }
+        },
+        "/api/v1/billing/insurance": {
+            "get": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Obtener todos los seguros a facturar",
+                "operationId": "9465fbceb8de35903cec970cb0a9cc6a",
+                "parameters": [
+                    {
+                        "name": "insuranceId",
+                        "in": "query",
+                        "description": "Seguro del usuario",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
