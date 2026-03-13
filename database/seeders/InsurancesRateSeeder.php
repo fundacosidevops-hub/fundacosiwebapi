@@ -9,7 +9,7 @@ class InsurancesRateSeeder extends Seeder
 {
     public function run(): void
     {
-        $studies = DB::table('medical_study')->pluck('id');
+        $studies = DB::table('medical_studies')->pluck('id');
 
         // Estudios que tendrán 80%
         $studiesWithZeroPercentage = [18, 19, 21, 22, 23, 30, 48, 50, 52, 53, 55,
@@ -41,14 +41,14 @@ class InsurancesRateSeeder extends Seeder
                 ];
 
                 if (count($chunk) == 500) {
-                    DB::table('insurances_rate')->insert($chunk);
+                    DB::table('insurances_rates')->insert($chunk);
                     $chunk = [];
                 }
             }
         }
 
         if (! empty($chunk)) {
-            DB::table('insurances_rate')->insert($chunk);
+            DB::table('insurances_rates')->insert($chunk);
         }
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\UserInfoResource;
 use App\Models\Insurances;
+use App\Models\InsurancesRate;
 use App\Models\User;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -72,5 +73,34 @@ class BillingController extends Controller
     public function getInsurance()
     {
         return response()->json(Insurances::all());
+    }
+
+    #[OA\Get(
+        path: '/api/v1/billing/medical-studies',
+        summary: 'Obtener todos los estudios a facturar',
+        tags: ['Billing'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'insurances_id',
+                description: 'ID del seguro',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'integer')
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getStudiesByInsurance(Request $request)
+    {
+        return response()->json(
+            InsurancesRate::with('medicalStudies')
+                ->where('insurances_id', $request->insurances_id)
+                ->where('is_active', true)
+                ->get()
+        );
     }
 }

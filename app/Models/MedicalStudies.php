@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class MedicalStudy extends Model
+class MedicalStudies extends Model
 {
     protected $fillable = ['catalog_service_id', 'description'];
 

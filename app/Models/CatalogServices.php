@@ -10,6 +10,6 @@ class CatalogServices extends Model
 
     public function medicalStudies()
     {
-        return $this->hasMany(MedicalStudy::class);
+        return $this->hasMany(MedicalStudies::class);
     }
 }

@@ -5,11 +5,11 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class MedicalStudySeeder extends Seeder
+class MedicalStudiesSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('medical_study')->insert([
+        DB::table('medical_studies')->insert([
             // AUDIOMETRIA
             ['description' => 'ACUFENOMETRIA', 'price' => 1500.00, 'is_active' => 1, 'catalog_service_id' => 1, 'created_user' => null, 'created_at' => null],
             ['description' => 'AUDIOMETRIA TONAR LAMINAR ', 'price' => 1500.00, 'is_active' => 1, 'catalog_service_id' => 1, 'created_user' => null, 'created_at' => null],

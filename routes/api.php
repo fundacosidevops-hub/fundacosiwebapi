@@ -16,5 +16,6 @@ Route::prefix('v1')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);
         Route::get('billing/insurance', [BillingController::class, 'getInsurance']);
+        Route::get('billing/medical-studies', [BillingController::class, 'getStudiesByInsurance']);
     });
 });

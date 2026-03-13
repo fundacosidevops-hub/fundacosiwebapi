@@ -248,16 +248,37 @@
                 ],
                 "summary": "Obtener todos los seguros a facturar",
                 "operationId": "9465fbceb8de35903cec970cb0a9cc6a",
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/billing/medical-studies": {
+            "get": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Obtener todos los estudios a facturar",
+                "operationId": "1faf6254e724e73400c0bd87b6416aab",
                 "parameters": [
                     {
-                        "name": "insuranceId",
+                        "name": "insurances_id",
                         "in": "query",
-                        "description": "Seguro del usuario",
+                        "description": "ID del seguro",
                         "required": true,
                         "schema": {
-                            "type": "string"
-                        },
-                        "example": "1"
+                            "type": "integer"
+                        }
                     }
                 ],
                 "responses": {
