@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class MedicalStudies extends Model
 {
-    protected $fillable = ['catalog_service_id', 'description'];
+    protected $fillable = ['catalog_services_id', 'description'];
 
     public function catalogServices()
     {

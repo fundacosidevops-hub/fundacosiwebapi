@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\UserInfoResource;
+use App\Models\CatalogServices;
 use App\Models\Insurances;
 use App\Models\InsurancesRate;
 use App\Models\User;
@@ -82,8 +83,15 @@ class BillingController extends Controller
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(
-                name: 'insurances_id',
+                name: 'insurance_id',
                 description: 'ID del seguro',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'integer')
+            ),
+            new OA\Parameter(
+                name: 'service_id',
+                description: 'ID del servicio',
                 in: 'query',
                 required: true,
                 schema: new OA\Schema(type: 'integer')
@@ -98,9 +106,27 @@ class BillingController extends Controller
     {
         return response()->json(
             InsurancesRate::with('medicalStudies')
-                ->where('insurances_id', $request->insurances_id)
+                ->where('insurances_id', $request->insurance_id)
                 ->where('is_active', true)
+                ->whereHas('medicalStudies', function ($query) use ($request) {
+                    $query->where('catalog_services_id', $request->service_id);
+                })
                 ->get()
         );
+    }
+
+    #[OA\Get(
+        path: '/api/v1/billing/catalog-services',
+        summary: 'Obtener todos los catalogos de servicios a facturar',
+        tags: ['Billing'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getCatalogServices()
+    {
+        return response()->json(CatalogServices::where('is_active', true)->get());
     }
 }

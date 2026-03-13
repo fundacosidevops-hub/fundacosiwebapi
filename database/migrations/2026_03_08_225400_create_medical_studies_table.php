@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('description', 600)->nullable();
             $table->decimal('price', 10, 2)->nullable();
             $table->boolean('is_active')->default(true);
-            $table->foreignId('catalog_service_id')->nullable()->constrained('catalog_services');
+            $table->foreignId('catalog_services_id')->nullable()->constrained('catalog_services');
             $table->integer('created_user')->nullable();
             $table->timestamps();
 
