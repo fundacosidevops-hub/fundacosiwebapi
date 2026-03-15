@@ -18,5 +18,6 @@ Route::prefix('v1')->group(function () {
         Route::get('billing/insurance', [BillingController::class, 'getInsurance']);
         Route::get('billing/medical-studies', [BillingController::class, 'getStudiesByInsurance']);
         Route::get('billing/catalog-services', [BillingController::class, 'getCatalogServices']);
+        Route::get('billing/catalog-services-doctor', [BillingController::class, 'getDoctorsByCatalogServices']);
     });
 });

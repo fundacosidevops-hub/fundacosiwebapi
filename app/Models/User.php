@@ -61,6 +61,16 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsTo(UserType::class);
     }
 
+    public function catalogServices()
+    {
+        return $this->belongsTo(CatalogServices::class);
+    }
+
+    public function medicalCatalogServices()
+    {
+        return $this->belongsTo(MedicalCatalogServices::class);
+    }
+
     public function getJWTIdentifier()
     {
         return $this->getKey();

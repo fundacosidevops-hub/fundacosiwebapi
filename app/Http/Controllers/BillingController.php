@@ -6,6 +6,7 @@ use App\Http\Resources\UserInfoResource;
 use App\Models\CatalogServices;
 use App\Models\Insurances;
 use App\Models\InsurancesRate;
+use App\Models\MedicalCatalogServices;
 use App\Models\User;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -127,6 +128,58 @@ class BillingController extends Controller
     )]
     public function getCatalogServices()
     {
-        return response()->json(CatalogServices::where('is_active', true)->get());
+        return response()->json(
+            CatalogServices::with('medicalCatalogServices.users')
+                ->where('is_active', true)
+                ->get()
+                ->map(function ($service) {
+                    return [
+                        'id' => $service->id,
+                        'description' => $service->description,
+                        'doctors' => $service->medicalCatalogServices
+                            ->filter(fn ($item) => $item->users)
+                            ->map(function ($item) {
+                                return [
+                                    'id' => $item->users->id,
+                                    'name' => $item->users->name.' '.$item->users->last_name,
+                                ];
+                            })->values(),
+                    ];
+                })
+        );
+    }
+
+    #[OA\Get(
+        path: '/api/v1/billing/catalog-services-doctor',
+        summary: 'Obtener todos los doctores por ID del servicio a facturar',
+        tags: ['Billing'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'service_id',
+                description: 'ID del doctor',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'integer')
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getDoctorsByCatalogServices(Request $request)
+    {
+        return response()->json(
+            MedicalCatalogServices::with('users')
+                ->where('catalog_services_id', $request->service_id)
+                ->whereHas('users', function ($q) {
+                    $q->where('is_active', true);
+                })
+                ->get()
+                ->map(function ($res) {
+                    return $res->users;
+                })
+        );
     }
 }
