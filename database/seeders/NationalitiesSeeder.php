@@ -9,7 +9,7 @@ class NationalitiesSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('nationalities')->insert([
+        DB::table('nationalities')->upsert([
             ['description' => 'Dominicana'],
             ['description' => 'Argentina'],
             ['description' => 'Boliviana'],
@@ -35,6 +35,8 @@ class NationalitiesSeeder extends Seeder
             ['description' => 'Uruguaya'],
             ['description' => 'Venezolana'],
             ['description' => 'Extranjero'],
-        ]);
+        ],
+            ['description'], // clave única
+            []);
     }
 }

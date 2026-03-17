@@ -9,10 +9,11 @@ class DocumentTypeSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('document_types')->insert([
+        DB::table('document_types')->upsert([
             ['description' => 'Cedula'],
             ['description' => 'Pasaporte'],
             ['description' => 'RNC'],
-        ]);
+        ], ['description'],
+            []);
     }
 }

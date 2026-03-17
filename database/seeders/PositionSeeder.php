@@ -9,7 +9,7 @@ class PositionSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('positions')->insert([
+        DB::table('positions')->upsert([
             ['description' => 'Cardiólogo/a Ecocardiografista'],
             ['description' => 'Cardiología y Medicina Intensiva'],
             ['description' => 'Soporte Tecnico'],
@@ -43,6 +43,8 @@ class PositionSeeder extends Seeder
             ['description' => 'Diabetología'],
             ['description' => 'Anestesiología'],
 
-        ]);
+        ],
+            ['description'], // clave única
+            []);
     }
 }

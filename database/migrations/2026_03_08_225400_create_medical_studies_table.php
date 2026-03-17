@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('medical_studies', function (Blueprint $table) {
             $table->id();
-            $table->string('description', 600)->nullable();
+            $table->string('description', 600)->unique();
             $table->decimal('price', 10, 2)->nullable();
             $table->boolean('is_active')->default(true);
             $table->foreignId('catalog_services_id')->nullable()->constrained('catalog_services');

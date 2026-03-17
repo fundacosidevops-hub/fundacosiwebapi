@@ -9,9 +9,11 @@ class UserTypeSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('user_types')->insert([
+        DB::table('user_types')->upsert([
             ['description' => 'Empleado'],
             ['description' => 'Paciente'],
-        ]);
+        ],
+            ['description'], // clave única
+            []);
     }
 }

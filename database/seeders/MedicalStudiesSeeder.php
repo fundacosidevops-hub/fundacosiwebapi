@@ -9,7 +9,7 @@ class MedicalStudiesSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('medical_studies')->insert([
+        DB::table('medical_studies')->upsert([
             // AUDIOMETRIA
             ['description' => 'ACUFENOMETRIA', 'price' => 1500.00, 'is_active' => 1, 'catalog_services_id' => 1, 'created_user' => null, 'created_at' => null],
             ['description' => 'AUDIOMETRIA TONAR LAMINAR ', 'price' => 1500.00, 'is_active' => 1, 'catalog_services_id' => 1, 'created_user' => null, 'created_at' => null],
@@ -2385,6 +2385,8 @@ class MedicalStudiesSeeder extends Seeder
             ['description' => 'VIDEO ELECTROENCEFALOGRAMA DE 8 HORAS', 'price' => 0.00, 'is_active' => 1, 'catalog_services_id' => 35, 'created_user' => null, 'created_at' => null],
             ['description' => 'VIDEO ENCEFALOGRAMA (1 HORA)', 'price' => 0.00, 'is_active' => 1, 'catalog_services_id' => 35, 'created_user' => null, 'created_at' => null],
 
-        ]);
+        ],
+            ['description'], // columna única
+            ['price', 'is_active', 'catalog_services_id', 'updated_at']);
     }
 }

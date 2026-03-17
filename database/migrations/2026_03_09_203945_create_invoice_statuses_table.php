@@ -6,25 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('insurances', function (Blueprint $table) {
+        Schema::create('in_invoice_statuses', function (Blueprint $table) {
+
             $table->id();
-            $table->string('rnc')->nullable();
-            $table->string('description')->unique();
-            $table->string('abbreviation')->nullable();
+            $table->string('name')->unique();
+            $table->string('description')->nullable();
             $table->boolean('is_active')->default(true);
+
+            $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('insurances');
+        Schema::dropIfExists('in_invoice_statuses');
     }
 };

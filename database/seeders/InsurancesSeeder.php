@@ -9,7 +9,7 @@ class InsurancesSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('insurances')->insert([
+        DB::table('insurances')->upsert([
             ['rnc' => null, 'description' => 'APS DOMINICANA, ARS', 'abbreviation' => 'APS', 'is_active' => true],
             ['rnc' => '101069912', 'description' => 'ARS MAPFRE SALUD', 'abbreviation' => 'MAPFR', 'is_active' => true],
             ['rnc' => null, 'description' => 'ARS SENASA LARIMAL', 'abbreviation' => 'SENLA', 'is_active' => true],
@@ -39,6 +39,8 @@ class InsurancesSeeder extends Seeder
             ['rnc' => null, 'description' => 'UNIVERSAL', 'abbreviation' => null, 'is_active' => true],
             ['rnc' => null, 'description' => 'SIN DEFINIR', 'abbreviation' => null, 'is_active' => true],
 
-        ]);
+        ],
+            ['abbreviation'], // clave única
+            ['description', 'rnc', 'is_active']);
     }
 }

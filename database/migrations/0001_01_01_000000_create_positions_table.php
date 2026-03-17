@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('positions', function (Blueprint $table) {
             $table->id(); // int primary key auto increment
-            $table->string('description', 50); // varchar(50) not null
+            $table->string('description', 50)->unique();
         });
     }
 
