@@ -332,7 +332,7 @@
                 "tags": [
                     "Billing"
                 ],
-                "summary": "Obtener todos los doctores por ID a facturar",
+                "summary": "Obtener todos los doctores por ID del servicio a facturar",
                 "operationId": "1d3464d2f240220d7a52f52eec19f12e",
                 "parameters": [
                     {
@@ -348,6 +348,123 @@
                 "responses": {
                     "200": {
                         "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/save-bill": {
+            "post": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Guardar factura",
+                "operationId": "d12358ec11704d7bf668892087a52dba",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "patientId",
+                                    "doctorId",
+                                    "billingType",
+                                    "subtotal",
+                                    "total",
+                                    "items"
+                                ],
+                                "properties": {
+                                    "patientId": {
+                                        "type": "string",
+                                        "example": "123456789"
+                                    },
+                                    "doctorId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "insuranceId": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "billingType": {
+                                        "type": "string",
+                                        "example": "insured"
+                                    },
+                                    "authorizationNumber": {
+                                        "type": "integer",
+                                        "example": 12345
+                                    },
+                                    "catalogServiceId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "subtotal": {
+                                        "type": "number",
+                                        "example": 1000
+                                    },
+                                    "discount": {
+                                        "type": "number",
+                                        "example": 200
+                                    },
+                                    "total": {
+                                        "type": "number",
+                                        "example": 800
+                                    },
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "medicalStudiesId": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "unitPrice": {
+                                                    "type": "number",
+                                                    "example": 500
+                                                },
+                                                "discount": {
+                                                    "type": "number",
+                                                    "example": 0
+                                                },
+                                                "insuranceCoverage": {
+                                                    "type": "number",
+                                                    "example": 50
+                                                },
+                                                "patientAmount": {
+                                                    "type": "number",
+                                                    "example": 250
+                                                },
+                                                "total": {
+                                                    "type": "number",
+                                                    "example": 500
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Factura creada correctamente"
+                    },
+                    "400": {
+                        "description": "Datos inválidos"
                     },
                     "401": {
                         "description": "No autorizado"

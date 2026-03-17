@@ -28,9 +28,9 @@ class Payments extends Model
     |--------------------------------------------------------------------------
     */
 
-    public function invoice()
+    public function invoices()
     {
-        return $this->belongsTo(Invoice::class);
+        return $this->belongsTo(Invoices::class);
     }
 
     public function paymentMethod()

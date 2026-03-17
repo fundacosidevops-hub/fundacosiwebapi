@@ -9,6 +9,8 @@ class InvoiceItems extends Model
 {
     use HasFactory;
 
+    protected $table = 'in_invoice_items';
+
     protected $fillable = [
         'invoice_id',
         'medical_study_id',
@@ -38,7 +40,7 @@ class InvoiceItems extends Model
 
     public function invoice()
     {
-        return $this->belongsTo(Invoice::class);
+        return $this->belongsTo(Invoices::class);
     }
 
     public function medicalStudy()

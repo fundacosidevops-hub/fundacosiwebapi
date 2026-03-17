@@ -21,18 +21,22 @@ return new class extends Migration
             $table->foreignId('doctor_id')
                 ->constrained('users');
 
-            // seguro (opcional)
+            // seguro
             $table->foreignId('insurance_id')
                 ->nullable()
                 ->constrained('insurances');
 
+            // catalogo de servicio
+            $table->foreignId('catalog_services_id')
+                ->nullable()
+                ->constrained('catalog_services');
             // autorización del seguro
             $table->integer('authorization_number')->nullable();
 
             // tipo de facturación
             $table->enum('billing_type', [
                 'private',
-                'insurance',
+                'insured',
             ]);
 
             // numeración de factura

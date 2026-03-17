@@ -5,20 +5,24 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Invoice extends Model
+class Invoices extends Model
 {
     use HasFactory;
+
+    protected $table = 'in_invoices';
 
     protected $fillable = [
         'patient_id',
         'doctor_id',
         'insurance_id',
+        'catalog_services_id',
         'status_id',
         'authorization_number',
         'billing_type',
         'invoice_number',
         'subtotal',
         'discount',
+        'insurance_coverage',
         'tax',
         'total',
         'paid_at',
@@ -52,6 +56,11 @@ class Invoice extends Model
     public function insurance()
     {
         return $this->belongsTo(Insurances::class);
+    }
+
+    public function catalogServices()
+    {
+        return $this->belongsTo(CatalogServices::class);
     }
 
     public function status()

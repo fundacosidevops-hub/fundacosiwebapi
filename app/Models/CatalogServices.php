@@ -17,4 +17,9 @@ class CatalogServices extends Model
     {
         return $this->hasMany(MedicalCatalogServices::class);
     }
+
+    public function invoice()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }
