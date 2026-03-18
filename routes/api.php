@@ -8,6 +8,39 @@ Route::prefix('v1')->group(function () {
 
     Route::post('login', [AuthController::class, 'login']);
 
+    Route::post('sign-print', function (\Illuminate\Http\Request $request) {
+        try {
+            $toSign = $request->input('request');
+
+            if (! $toSign) {
+                return response('No request provided', 400);
+            }
+
+            // 2. Cargar la llave privada (ruta: storage/app/private-key.pem)
+            $privateKeyPath = storage_path('app/private-key.pem');
+            $privateKey = file_get_contents($privateKeyPath);
+
+            // 3. Crear la firma usando RSA-SHA512
+            $signature = '';
+            $binarySignature = '';
+
+            // OPENSSL_ALGO_SHA512 es el estándar recomendado por QZ
+            openssl_sign($toSign, $binarySignature, $privateKey, OPENSSL_ALGO_SHA512);
+
+            // 4. Codificar en Base64 para enviarlo de vuelta
+            $signature = base64_encode($binarySignature);
+
+            return response($signature, 200)
+                ->header('Content-Type', 'text/plain');
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'Signing failedss',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    });
+
     Route::middleware('auth:api')->group(function () {
         Route::post('saveUser', [AuthController::class, 'saveUser']);
         Route::get('positions', [AuthController::class, 'positions']);
