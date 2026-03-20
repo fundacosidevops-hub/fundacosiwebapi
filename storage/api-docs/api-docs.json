@@ -476,6 +476,28 @@
                     }
                 ]
             }
+        },
+        "/api/v1/billing/payment-methods": {
+            "get": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Obtener todos los metodo de pago a facturar",
+                "operationId": "084b7e66ce7dd4c3bc6fd80640208456",
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {

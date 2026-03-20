@@ -9,6 +9,8 @@ use App\Models\InsurancesRate;
 use App\Models\InvoiceItems;
 use App\Models\Invoices;
 use App\Models\MedicalCatalogServices;
+use App\Models\PaymentMethods;
+use App\Models\Payments;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -186,6 +188,16 @@ class BillingController extends Controller
         );
     }
 
+    public function generateNextInvoice($lastInvoice)
+    {
+        $prefix = substr($lastInvoice, 0, 1); // B
+        $number = substr($lastInvoice, 1);    // 20569988
+
+        $nextNumber = (int) $number + 1;
+
+        return $prefix.str_pad($nextNumber, strlen($number), '0', STR_PAD_LEFT);
+    }
+
     #[OA\Post(
         path: '/api/v1/save-bill',
         summary: 'Guardar factura',
@@ -275,7 +287,7 @@ class BillingController extends Controller
                 'status_id' => 1,
                 'authorization_number' => $validated['authorizationNumber'] ?? null,
                 'billing_type' => $validated['billingType'],
-                'invoice_number' => 'B20569988',
+                'invoice_number' => generateNextInvoice('B0200667'.$patient->id),
                 'subtotal' => $validated['subtotal'],
                 'discount' => $validated['discount'],
                 'total' => $validated['total'],
@@ -298,10 +310,7 @@ class BillingController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Factura creada correctamente',
-                'data' => $invoice,
-            ], 201);
+            return response()->json($invoice->id, 200);
 
         } catch (\Exception $e) {
 
@@ -312,5 +321,86 @@ class BillingController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    #[OA\Post(
+        path: '/api/v1/save-payment',
+        summary: 'Guardar pago a factura',
+        tags: ['Billing'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['invoiceId', 'paymentMethodId', 'total'],
+                properties: [
+                    new OA\Property(property: 'invoiceId', type: 'integer', example: 2),
+                    new OA\Property(property: 'paymentMethodId', type: 'integer', example: 1),
+                    new OA\Property(property: 'total', type: 'integer', example: 2),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Factura creada correctamente'),
+            new OA\Response(response: 400, description: 'Datos inválidos'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function savePayment(Request $request)
+    {
+        $validated = $request->validate([
+            'invoiceId' => 'required|integer',
+            'paymentMethodId' => 'required|integer',
+            'total' => 'required|numeric',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            // crear pago a factura
+            $invoice = Payments::create([
+                'invoice_id' => $validated['invoiceId'],
+                'payment_method_id' => $validated['paymentMethodId'],
+                'amount' => $validated['total'],
+                'reference' => 'Pago a factura No. 5',
+                'paid_at' => NOW(),
+            ]);
+
+            DB::commit();
+            // cambiar estado a la factura a pagado
+            Invoices::where('id', $validated['invoiceId'])->update([
+                'status_id' => 3,
+            ]);
+
+            return response()->json([
+                'message' => 'Pago creado correctamente',
+                'data' => $invoice,
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Error al guardar pago de factura',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    #[OA\Get(
+        path: '/api/v1/billing/payment-methods',
+        summary: 'Obtener todos los metodo de pago a facturar',
+        tags: ['Billing'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getPaymentMethods()
+    {
+        return response()->json(
+            PaymentMethods::all()
+        );
     }
 }

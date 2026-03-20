@@ -3636,8 +3636,24 @@ namespace App\Models {
     /**
      * App\Models\Payments
      *
+     * @property \Illuminate\Support\Carbon|null $updated_at
+     * @property \Illuminate\Support\Carbon|null $created_at
+     * @property \Illuminate\Support\Carbon|null $paid_at
+     * @property string|null $reference
+     * @property float $amount
+     * @property mixed $payment_method_id
+     * @property mixed $invoice_id
+     * @property int $id
      * @property-read \App\Models\Invoices $invoices
      * @property-read \App\Models\PaymentMethods $paymentMethod
+     * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments whereId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments whereInvoiceId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments wherePaymentMethodId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments whereAmount($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments whereReference($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments wherePaidAt($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments whereCreatedAt($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments whereUpdatedAt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<Payments>|Payments query()
