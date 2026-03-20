@@ -477,13 +477,67 @@
                 ]
             }
         },
+        "/api/v1/save-payment": {
+            "post": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Guardar pago a factura",
+                "operationId": "63fd2367c63bec1bcd777d0f730e6d81",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "invoiceId",
+                                    "paymentMethodId",
+                                    "total"
+                                ],
+                                "properties": {
+                                    "invoiceId": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "paymentMethodId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "total": {
+                                        "type": "integer",
+                                        "example": 2
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Factura creada correctamente"
+                    },
+                    "400": {
+                        "description": "Datos inválidos"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/v1/billing/payment-methods": {
             "get": {
                 "tags": [
                     "Billing"
                 ],
                 "summary": "Obtener todos los metodo de pago a facturar",
-                "operationId": "084b7e66ce7dd4c3bc6fd80640208456",
+                "operationId": "124799c2dec448db572bd5b9e3b1ce82",
                 "responses": {
                     "200": {
                         "description": "Datos obtenido correctamente"

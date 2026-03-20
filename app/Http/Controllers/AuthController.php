@@ -86,22 +86,25 @@ class AuthController extends Controller
             'phone' => 'nullable|string|max:12',
         ]);
 
-        $user = User::updateOrCreate(
-            ['email' => $validated['email']], // condición para buscar
-            [
-                'avatar' => 'avatar.jpg',
-                'name' => $validated['name'],
-                'position_id' => $validated['positionId'],
-                'phone' => $validated['phone'] ?? null,
-                'is_active' => 1,
-            ]
-        );
+        $data = [
+            'avatar' => 'avatar.jpg',
+            'name' => $validated['name'],
+            'last_name' => 'Capellan',
+            'position_id' => $validated['positionId'],
+            'phone' => $validated['phone'] ?? null,
+            'is_active' => 1,
+        ];
 
-        // solo asignar password si el usuario es nuevo
-        if ($user->wasRecentlyCreated) {
-            $user->password = Hash::make('TempPass123');
-            $user->save();
+        $user = User::where('email', $validated['email'])->first();
+
+        if (! $user) {
+            $data['password'] = Hash::make('TempPass123');
         }
+
+        $user = User::updateOrCreate(
+            ['email' => $validated['email']],
+            $data
+        );
 
         $user->syncRoles([$validated['roles']]);
 

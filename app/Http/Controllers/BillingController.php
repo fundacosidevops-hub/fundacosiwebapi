@@ -12,6 +12,7 @@ use App\Models\MedicalCatalogServices;
 use App\Models\PaymentMethods;
 use App\Models\Payments;
 use App\Models\User;
+use App\Services\NcfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
@@ -287,7 +288,7 @@ class BillingController extends Controller
                 'status_id' => 1,
                 'authorization_number' => $validated['authorizationNumber'] ?? null,
                 'billing_type' => $validated['billingType'],
-                'invoice_number' => generateNextInvoice('B0200667'.$patient->id),
+                'invoice_number' => NcfService::generate('B02'),
                 'subtotal' => $validated['subtotal'],
                 'discount' => $validated['discount'],
                 'total' => $validated['total'],
@@ -400,7 +401,7 @@ class BillingController extends Controller
     public function getPaymentMethods()
     {
         return response()->json(
-            PaymentMethods::all()
+            PaymentMethods::where('is_active', true)->get()
         );
     }
 }

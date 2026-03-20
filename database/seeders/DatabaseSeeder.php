@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             InsurancesRateSeeder::class,
             InvoiceStatusSeeder::class,
             PaymentMethodsSeeder::class,
+            NcfSequencesSeeder::class,
         ]);
         User::factory()->create([
             'name' => 'User',
