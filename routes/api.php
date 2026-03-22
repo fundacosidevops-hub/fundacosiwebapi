@@ -9,6 +9,7 @@ Route::prefix('v1')->group(function () {
 
     Route::post('login', [AuthController::class, 'login']);
     Route::get('common/patient-info', [CommonController::class, 'getPatientInformation']);
+    Route::get('common/save-ticket', [CommonController::class, 'saveTicket']);
     Route::get('common/insurance', [CommonController::class, 'getInsurance']);
     Route::get('common/catalog-services', [CommonController::class, 'getCatalogServices']);
     Route::get('common/catalog-services-doctor', [CommonController::class, 'getDoctorsByCatalogServices']);
