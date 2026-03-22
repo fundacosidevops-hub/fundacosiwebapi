@@ -241,125 +241,6 @@
                 ]
             }
         },
-        "/api/v1/billing/insurance": {
-            "get": {
-                "tags": [
-                    "Billing"
-                ],
-                "summary": "Obtener todos los seguros a facturar",
-                "operationId": "9465fbceb8de35903cec970cb0a9cc6a",
-                "responses": {
-                    "200": {
-                        "description": "Datos obtenido correctamente"
-                    },
-                    "401": {
-                        "description": "No autorizado"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/billing/medical-studies": {
-            "get": {
-                "tags": [
-                    "Billing"
-                ],
-                "summary": "Obtener todos los estudios a facturar",
-                "operationId": "1faf6254e724e73400c0bd87b6416aab",
-                "parameters": [
-                    {
-                        "name": "insurance_id",
-                        "in": "query",
-                        "description": "ID del seguro",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "service_id",
-                        "in": "query",
-                        "description": "ID del servicio",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Datos obtenido correctamente"
-                    },
-                    "401": {
-                        "description": "No autorizado"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/billing/catalog-services": {
-            "get": {
-                "tags": [
-                    "Billing"
-                ],
-                "summary": "Obtener todos los catalogos de servicios a facturar",
-                "operationId": "2e0d5dacdaea25b8cabab669050ced4b",
-                "responses": {
-                    "200": {
-                        "description": "Datos obtenido correctamente"
-                    },
-                    "401": {
-                        "description": "No autorizado"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/billing/catalog-services-doctor": {
-            "get": {
-                "tags": [
-                    "Billing"
-                ],
-                "summary": "Obtener todos los doctores por ID del servicio a facturar",
-                "operationId": "1d3464d2f240220d7a52f52eec19f12e",
-                "parameters": [
-                    {
-                        "name": "service_id",
-                        "in": "query",
-                        "description": "ID del doctor",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Datos obtenido correctamente"
-                    },
-                    "401": {
-                        "description": "No autorizado"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/v1/save-bill": {
             "post": {
                 "tags": [
@@ -552,6 +433,125 @@
                     }
                 ]
             }
+        },
+        "/api/v1/common/insurance": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Obtener todos los seguros a facturar",
+                "operationId": "8eef5cbcfd442b990564265c696947e1",
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/medical-studies": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Obtener todos los estudios a facturar",
+                "operationId": "6656fb8f2ea6904a514f8fb2afed4740",
+                "parameters": [
+                    {
+                        "name": "insurance_id",
+                        "in": "query",
+                        "description": "ID del seguro",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "service_id",
+                        "in": "query",
+                        "description": "ID del servicio",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/catalog-services": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Obtener todos los catalogos de servicios a facturar",
+                "operationId": "bf1cd5dc229591afaa40134f0437768d",
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/catalog-services-doctor": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Obtener todos los doctores por ID del servicio a facturar",
+                "operationId": "ac3bf1b123083325f58a6bacef908017",
+                "parameters": [
+                    {
+                        "name": "service_id",
+                        "in": "query",
+                        "description": "ID del doctor",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -571,6 +571,10 @@
         {
             "name": "Billing",
             "description": "Endpoints de facturas"
+        },
+        {
+            "name": "Common",
+            "description": "Common"
         }
     ]
 }

@@ -37,7 +37,7 @@ class CatalogServicesSeeder extends Seeder
             ['description' => 'ORTOPEDA', 'inventory' => 0, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 1, 'is_active' => 1],
             ['description' => 'PATOLOGIA', 'inventory' => 0, 'ambulatory' => 1, 'internment' => 1, 'emergency' => 1, 'pattern' => 0, 'rate' => 1, 'is_active' => 1],
             ['description' => 'PROCEDIMIENTO', 'inventory' => 0, 'ambulatory' => 1, 'internment' => 1, 'emergency' => 0, 'pattern' => 1, 'rate' => 1, 'is_active' => 1],
-            ['description' => 'PSICOLOGIA', 'inventory' => 0, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 0, 'pattern' => 0, 'rate' => 1, 'is_active' => 1],
+            ['description' => 'SALUD MENTAL', 'inventory' => 0, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 0, 'pattern' => 0, 'rate' => 1, 'is_active' => 1],
             ['description' => 'RAYOS X', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 1, 'emergency' => 0, 'pattern' => 1, 'rate' => 1, 'is_active' => 1],
             ['description' => 'RESONANCIA', 'inventory' => 1, 'ambulatory' => 0, 'internment' => 0, 'emergency' => 0, 'pattern' => 1, 'rate' => 0, 'is_active' => 1],
             ['description' => 'SALA DE CIRUGÍA', 'inventory' => 1, 'ambulatory' => 0, 'internment' => 1, 'emergency' => 0, 'pattern' => 0, 'rate' => 1, 'is_active' => 1],
@@ -45,6 +45,12 @@ class CatalogServicesSeeder extends Seeder
             ['description' => 'TOMOGRAFÍA', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 1, 'emergency' => 0, 'pattern' => 1, 'rate' => 1, 'is_active' => 1],
             ['description' => 'VACUNAS', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 0, 'is_active' => 1],
             ['description' => 'NEUROLOGIA', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 0, 'is_active' => 1],
+            ['description' => 'GASTROENTEROLOGIA', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 0, 'is_active' => 1],
+            ['description' => 'PEDIATRIA', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 0, 'is_active' => 1],
+            ['description' => 'OFTARMOLOGIA', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 0, 'is_active' => 1],
+            ['description' => 'UROLOGIA', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 0, 'is_active' => 1],
+            ['description' => 'TRAUMATOLOGIA', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 0, 'is_active' => 1],
+            ['description' => 'ANESTESIOLOGIA', 'inventory' => 1, 'ambulatory' => 1, 'internment' => 0, 'emergency' => 1, 'pattern' => 0, 'rate' => 0, 'is_active' => 1],
 
         ]);
     }
