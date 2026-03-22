@@ -552,6 +552,40 @@
                     }
                 ]
             }
+        },
+        "/api/v1/billing/patient-info": {
+            "get": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Obtener datos del paciente",
+                "operationId": "980b2a5f5874489b423cd3aa3220b5cb",
+                "parameters": [
+                    {
+                        "name": "document_id",
+                        "in": "query",
+                        "description": "Documento del paciente",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "00107508525"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {

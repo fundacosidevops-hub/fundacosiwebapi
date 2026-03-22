@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\UserInfoResource;
 use App\Models\CatalogServices;
 use App\Models\Insurances;
 use App\Models\InsurancesRate;
 use App\Models\MedicalCatalogServices;
+use App\Models\User;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
@@ -130,5 +132,48 @@ class CommonController
                     return $res->users;
                 })
         );
+    }
+
+    #[OA\Get(
+        path: '/api/v1/billing/patient-info',
+        summary: 'Obtener datos del paciente',
+        tags: ['Billing'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'document_id',
+                in: 'query',
+                required: true,
+                description: 'Documento del paciente',
+                schema: new OA\Schema(type: 'string'),
+                example: '00107508525'
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getPatientInformation(Request $request)
+    {
+        $documentId = str_replace(' ', '', $request->documentId);
+
+        $user = User::with([
+            'nationalities',
+            'maritalStatus',
+            'documentType',
+            'insurance',
+        ])
+            ->where('document_number', $documentId)
+            ->first();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Paciente no encontrado',
+            ], 200);
+        }
+
+        return new UserInfoResource($user);
     }
 }
