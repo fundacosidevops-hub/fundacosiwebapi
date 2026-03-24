@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('queue_code');
             $table->integer('curr_number');
             $table->string('ticket');
-            $table->foreignId('patient_id');
+            $table->string('patient_id');
 
             $table->foreignId('assign_user_id')->nullable()
                 ->constrained('users')

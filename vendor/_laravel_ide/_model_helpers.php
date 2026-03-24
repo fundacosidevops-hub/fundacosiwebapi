@@ -4632,7 +4632,7 @@ namespace App\Models {
      * @property mixed $insurance_id
      * @property mixed $billing_type
      * @property mixed $assign_user_id
-     * @property mixed $patient_id
+     * @property string $patient_id
      * @property string $ticket
      * @property mixed $curr_number
      * @property string $queue_code

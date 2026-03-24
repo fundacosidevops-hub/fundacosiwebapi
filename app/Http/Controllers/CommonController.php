@@ -137,9 +137,9 @@ class CommonController
     }
 
     #[OA\Get(
-        path: '/api/v1/billing/patient-info',
+        path: '/api/v1/common/patient-info',
         summary: 'Obtener datos del paciente',
-        tags: ['Billing'],
+        tags: ['Common'],
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(
