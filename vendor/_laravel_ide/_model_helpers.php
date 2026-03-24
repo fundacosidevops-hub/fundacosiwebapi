@@ -4625,9 +4625,32 @@ namespace App\Models {
     /**
      * App\Models\QueueManager
      *
-     * @property-read \App\Models\User $user
+     * @property \Illuminate\Support\Carbon|null $updated_at
+     * @property \Illuminate\Support\Carbon|null $created_at
+     * @property mixed $doctor_id
+     * @property mixed $catalog_services_id
+     * @property mixed $insurance_id
+     * @property mixed $billing_type
+     * @property mixed $assign_user_id
+     * @property mixed $patient_id
+     * @property string $ticket
+     * @property mixed $curr_number
+     * @property string $queue_code
+     * @property int $id
      * @property-read \App\Models\Insurances $insurance
      * @property-read \App\Models\CatalogServices $catalogServices
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereQueueCode($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereCurrNumber($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereTicket($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager wherePatientId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereAssignUserId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereBillingType($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereInsuranceId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereCatalogServicesId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereDoctorId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereCreatedAt($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereUpdatedAt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager query()

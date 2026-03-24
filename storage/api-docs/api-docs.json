@@ -586,6 +586,75 @@
                     }
                 ]
             }
+        },
+        "/api/v1/save-ticket": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Guardar ticket",
+                "operationId": "ed86ba6b1adac180f56c9ffef3a89bcb",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "code",
+                                    "documentId",
+                                    "insuranceId",
+                                    "catalogServiceId",
+                                    "doctorId",
+                                    "billingType"
+                                ],
+                                "properties": {
+                                    "code": {
+                                        "type": "string",
+                                        "example": "AA1"
+                                    },
+                                    "documentId": {
+                                        "type": "string",
+                                        "example": "00118479953"
+                                    },
+                                    "insuranceId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "catalogServiceId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "doctorId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "billingType": {
+                                        "type": "string",
+                                        "example": "private"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Usuario creado correctamente"
+                    },
+                    "400": {
+                        "description": "Datos inválidos"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {

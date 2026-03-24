@@ -11,16 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('queue_manager', function (Blueprint $table) {
+        Schema::create('queue_managers', function (Blueprint $table) {
             $table->id();
 
             $table->string('queue_code');
+            $table->integer('curr_number');
+            $table->string('ticket');
+            $table->foreignId('patient_id');
 
-            $table->foreignId('patient_id')
-                ->constrained('users')
-                ->cascadeOnDelete();
-
-            $table->foreignId('assign_user_id')
+            $table->foreignId('assign_user_id')->nullable()
                 ->constrained('users')
                 ->cascadeOnDelete();
 
@@ -35,7 +34,6 @@ return new class extends Migration
 
             // catalogo de servicio
             $table->foreignId('catalog_services_id')
-                ->nullable()
                 ->constrained('catalog_services');
 
             // doctor que ordena el estudio

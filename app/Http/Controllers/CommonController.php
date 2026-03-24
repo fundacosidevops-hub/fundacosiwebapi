@@ -7,8 +7,10 @@ use App\Models\CatalogServices;
 use App\Models\Insurances;
 use App\Models\InsurancesRate;
 use App\Models\MedicalCatalogServices;
+use App\Models\QueueManager;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 
 class CommonController
@@ -175,5 +177,68 @@ class CommonController
         }
 
         return new UserInfoResource($user);
+    }
+
+    #[OA\Post(
+        path: '/api/v1/save-ticket',
+        summary: 'Guardar ticket',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['code', 'documentId', 'insuranceId', 'catalogServiceId', 'doctorId', 'billingType'],
+                properties: [
+                    new OA\Property(property: 'code', type: 'string', example: 'AA1'),
+                    new OA\Property(property: 'documentId', type: 'string', example: '00118479953'),
+                    new OA\Property(property: 'insuranceId', type: 'integer', example: 1),
+                    new OA\Property(property: 'catalogServiceId', type: 'integer', example: 1),
+                    new OA\Property(property: 'doctorId', type: 'integer', example: 1),
+                    new OA\Property(property: 'billingType', type: 'string', example: 'private'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Usuario creado correctamente'),
+            new OA\Response(response: 400, description: 'Datos inválidos'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function saveTicket(Request $request)
+    {
+        $validated = $request->validate([
+            'code' => 'required|string',
+            'documentId' => 'required|string|max:20',
+            'catalogServiceId' => 'required|integer',
+            'insuranceId' => 'nullable|integer',
+            'doctorId' => 'required|integer',
+            'billingType' => 'required|string',
+        ]);
+        DB::transaction(function () use ($validated, &$data) {
+
+            $lastNumber = QueueManager::where('catalog_services_id', $validated['catalogServiceId'])
+                ->whereDate('created_at', now())
+                ->lockForUpdate()
+                ->max('curr_number');
+
+            $nextNumber = $lastNumber ? $lastNumber + 1 : 1;
+
+            $ticket = $validated['code'].'-'.str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+
+            $data = QueueManager::create([
+                'queue_code' => $validated['code'],
+                'curr_number' => $nextNumber,
+                'ticket' => $ticket,
+                'patient_id' => $validated['documentId'],
+                'assign_user_id' => null,
+                'billing_type' => $validated['billingType'],
+                'insurance_id' => $validated['insuranceId'],
+                'catalog_services_id' => $validated['catalogServiceId'],
+                'doctor_id' => $validated['doctorId'],
+            ]);
+
+        });
+
+        return response()->json($data, 200);
     }
 }

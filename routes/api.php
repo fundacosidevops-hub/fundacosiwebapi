@@ -9,7 +9,7 @@ Route::prefix('v1')->group(function () {
 
     Route::post('login', [AuthController::class, 'login']);
     Route::get('common/patient-info', [CommonController::class, 'getPatientInformation']);
-    Route::get('common/save-ticket', [CommonController::class, 'saveTicket']);
+    Route::post('common/save-ticket', [CommonController::class, 'saveTicket']);
     Route::get('common/insurance', [CommonController::class, 'getInsurance']);
     Route::get('common/catalog-services', [CommonController::class, 'getCatalogServices']);
     Route::get('common/catalog-services-doctor', [CommonController::class, 'getDoctorsByCatalogServices']);
@@ -25,7 +25,6 @@ Route::prefix('v1')->group(function () {
         Route::get('profile', [AuthController::class, 'profile']);
         Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);
         Route::get('billing/payment-methods', [BillingController::class, 'getPaymentMethods']);
-
         Route::get('common/medical-studies', [CommonController::class, 'getStudiesByInsurance']);
 
     });

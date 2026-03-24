@@ -10,7 +10,11 @@ class QueueManager extends Model
     use HasFactory;
 
     protected $fillable = [
+        'queue_code',
+        'curr_number',
+        'ticket',
         'patient_id',
+        'assign_user_id',
         'billing_type',
         'insurance_id',
         'catalog_services_id',
@@ -22,11 +26,6 @@ class QueueManager extends Model
     | Relationships
     |--------------------------------------------------------------------------
     */
-
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'assign_user_id');
-    }
 
     public function insurance()
     {
