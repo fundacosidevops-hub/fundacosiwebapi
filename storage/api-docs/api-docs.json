@@ -553,13 +553,13 @@
                 ]
             }
         },
-        "/api/v1/billing/patient-info": {
+        "/api/v1/common/patient-info": {
             "get": {
                 "tags": [
-                    "Billing"
+                    "Common"
                 ],
                 "summary": "Obtener datos del paciente",
-                "operationId": "980b2a5f5874489b423cd3aa3220b5cb",
+                "operationId": "57451395310f113903a11852a957c4e3",
                 "parameters": [
                     {
                         "name": "document_id",

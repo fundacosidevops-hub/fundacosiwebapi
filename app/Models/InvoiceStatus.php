@@ -9,7 +9,7 @@ class InvoiceStatus extends Model
 {
     use HasFactory;
 
-    protected $table = 'invoice_statuses';
+    protected $table = 'in_invoice_statuses';
 
     protected $fillable = [
         'name',

@@ -12,7 +12,7 @@ class InvoiceItems extends Model
     protected $table = 'in_invoice_items';
 
     protected $fillable = [
-        'invoice_id',
+        'invoices_id',
         'medical_study_id',
         'description',
         'quantity',

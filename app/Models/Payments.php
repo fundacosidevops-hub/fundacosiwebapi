@@ -12,7 +12,7 @@ class Payments extends Model
     protected $table = 'in_payments';
 
     protected $fillable = [
-        'invoice_id',
+        'invoices_id',
         'payment_method_id',
         'amount',
         'reference',

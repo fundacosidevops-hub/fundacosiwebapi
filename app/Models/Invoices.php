@@ -19,7 +19,7 @@ class Invoices extends Model
         'status_id',
         'authorization_number',
         'billing_type',
-        'invoice_number',
+        'ncf_number',
         'subtotal',
         'discount',
         'insurance_coverage',

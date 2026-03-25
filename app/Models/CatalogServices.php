@@ -20,6 +20,6 @@ class CatalogServices extends Model
 
     public function invoice()
     {
-        return $this->hasMany(Invoice::class);
+        return $this->hasMany(Invoices::class);
     }
 }

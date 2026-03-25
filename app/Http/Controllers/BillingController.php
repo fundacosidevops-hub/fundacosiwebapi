@@ -163,7 +163,7 @@ class BillingController extends Controller
                 'status_id' => 1,
                 'authorization_number' => $validated['authorizationNumber'] ?? null,
                 'billing_type' => $validated['billingType'],
-                'invoice_number' => NcfService::generate('B02'),
+                'ncf_number' => NcfService::generate('B02'),
                 'subtotal' => $validated['subtotal'],
                 'discount' => $validated['discount'],
                 'total' => $validated['total'],
@@ -173,7 +173,7 @@ class BillingController extends Controller
             // Guardar items
             foreach ($validated['items'] as $item) {
                 InvoiceItems::create([
-                    'invoice_id' => $invoice->id,
+                    'invoices_id' => $invoice->id,
                     'medical_study_id' => $item['medicalStudiesId'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unitPrice'],
@@ -185,8 +185,18 @@ class BillingController extends Controller
             }
 
             DB::commit();
+            $invoice->load([
+                'patient',
+                'doctor',
+                'insurance',
+                'catalogServices',
+                'status',
+                'items.medicalStudy',
+                'payments',
+                'creator',
+            ]);
 
-            return response()->json($invoice->id, 200);
+            return response()->json($invoice, 200);
 
         } catch (\Exception $e) {
 
@@ -234,10 +244,10 @@ class BillingController extends Controller
         try {
             // crear pago a factura
             $invoice = Payments::create([
-                'invoice_id' => $validated['invoiceId'],
+                'invoices_id' => $validated['invoiceId'],
                 'payment_method_id' => $validated['paymentMethodId'],
                 'amount' => $validated['total'],
-                'reference' => 'Pago a factura No. 5',
+                'reference' => 'Pago a factura No.'.$validated['invoiceId'],
                 'paid_at' => NOW(),
             ]);
 

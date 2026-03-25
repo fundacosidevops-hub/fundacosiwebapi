@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
 
             // factura
-            $table->foreignId('invoice_id')
+            $table->foreignId('invoices_id')
                 ->constrained('in_invoices')
                 ->cascadeOnDelete();
 
