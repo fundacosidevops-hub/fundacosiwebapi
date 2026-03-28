@@ -461,7 +461,7 @@
                 "tags": [
                     "Common"
                 ],
-                "summary": "Obtener todos los estudios a facturar",
+                "summary": "Obtener todos los estudios.",
                 "operationId": "6656fb8f2ea6904a514f8fb2afed4740",
                 "parameters": [
                     {
@@ -503,7 +503,7 @@
                 "tags": [
                     "Common"
                 ],
-                "summary": "Obtener todos los catalogos de servicios a facturar",
+                "summary": "Obtener todos los catalogos de servicios.",
                 "operationId": "bf1cd5dc229591afaa40134f0437768d",
                 "responses": {
                     "200": {
@@ -525,7 +525,7 @@
                 "tags": [
                     "Common"
                 ],
-                "summary": "Obtener todos los doctores por ID del servicio a facturar",
+                "summary": "Obtener todos los doctores por ID del servicio.",
                 "operationId": "ac3bf1b123083325f58a6bacef908017",
                 "parameters": [
                     {
@@ -644,6 +644,28 @@
                     },
                     "400": {
                         "description": "Datos inválidos"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/call-next-queue": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Llamar siguiente turno.",
+                "operationId": "8160f09c19a164a384aa35b7a574c795",
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
                     },
                     "401": {
                         "description": "No autorizado"

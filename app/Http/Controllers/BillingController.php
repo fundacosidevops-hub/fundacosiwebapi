@@ -55,13 +55,12 @@ class BillingController extends Controller
             ->where('document_number', $document)
             ->first();
 
-        if (! $user) {
-            return response()->json([
-                'message' => 'Usuario no encontrado',
-            ], 404);
-        }
+        return response()->json([
+            'message' => $user ? 'Usuario encontrado' : 'Usuario no encontrado',
+            'isSuccess' => (bool) $user,
+            'data' => $user ? new UserInfoResource($user) : null,
+        ], 200);
 
-        return new UserInfoResource($user);
     }
 
     public function generateNextInvoice($lastInvoice)
@@ -150,7 +149,8 @@ class BillingController extends Controller
 
             if (! $patient) {
                 return response()->json([
-                    'message' => 'Paciente no encontrado',
+                    'message' => 'No se puede facturar el paciente porque no esta creado en el sistema.',
+                    'isSuccess' => false,
                 ], 404);
             }
 

@@ -13,6 +13,7 @@ class QueueManager extends Model
         'queue_code',
         'curr_number',
         'ticket',
+        'status',
         'patient_id',
         'assign_user_id',
         'billing_type',
@@ -35,5 +36,10 @@ class QueueManager extends Model
     public function catalogServices()
     {
         return $this->belongsTo(CatalogServices::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'assign_user_id');
     }
 }

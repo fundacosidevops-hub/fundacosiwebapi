@@ -26,6 +26,7 @@ Route::prefix('v1')->group(function () {
         Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);
         Route::get('billing/payment-methods', [BillingController::class, 'getPaymentMethods']);
         Route::get('common/medical-studies', [CommonController::class, 'getStudiesByInsurance']);
+        Route::get('common/call-next-queue', [CommonController::class, 'callNextQueue']);
 
     });
 });

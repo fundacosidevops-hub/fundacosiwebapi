@@ -22,7 +22,8 @@ return new class extends Migration
             $table->foreignId('assign_user_id')->nullable()
                 ->constrained('users')
                 ->cascadeOnDelete();
-
+            $table->enum('status', ['pending', 'called', 'done', 'skip'])
+                ->default('pending');
             $table->enum('billing_type', [
                 'private',
                 'insured',

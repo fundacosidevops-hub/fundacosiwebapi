@@ -18,9 +18,9 @@ namespace App\Models {
      * @property string $description
      * @property int $id
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MedicalStudies> $medicalStudies
-     * @property-read int|null $medicalStudies_count
+     * @property-read int|null $medical_studies_count
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MedicalCatalogServices> $medicalCatalogServices
-     * @property-read int|null $medicalCatalogServices_count
+     * @property-read int|null $medical_catalog_services_count
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Invoices> $invoice
      * @property-read int|null $invoice_count
      * @method static \Illuminate\Database\Eloquent\Builder<CatalogServices>|CatalogServices whereId($value)
@@ -4988,6 +4988,7 @@ namespace App\Models {
      * @property mixed $catalog_services_id
      * @property mixed $insurance_id
      * @property mixed $billing_type
+     * @property mixed $status
      * @property mixed $assign_user_id
      * @property string $patient_id
      * @property string $ticket
@@ -4996,12 +4997,14 @@ namespace App\Models {
      * @property int $id
      * @property-read \App\Models\Insurances $insurance
      * @property-read \App\Models\CatalogServices $catalogServices
+     * @property-read \App\Models\User $user
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereQueueCode($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereCurrNumber($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereTicket($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager wherePatientId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereAssignUserId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereStatus($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereBillingType($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereInsuranceId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereCatalogServicesId($value)

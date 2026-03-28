@@ -9,6 +9,7 @@ use App\Models\InsurancesRate;
 use App\Models\MedicalCatalogServices;
 use App\Models\QueueManager;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
@@ -32,7 +33,7 @@ class CommonController
 
     #[OA\Get(
         path: '/api/v1/common/medical-studies',
-        summary: 'Obtener todos los estudios a facturar',
+        summary: 'Obtener todos los estudios.',
         tags: ['Common'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -71,7 +72,7 @@ class CommonController
 
     #[OA\Get(
         path: '/api/v1/common/catalog-services',
-        summary: 'Obtener todos los catalogos de servicios a facturar',
+        summary: 'Obtener todos los catalogos de servicios.',
         tags: ['Common'],
         security: [['bearerAuth' => []]],
         responses: [
@@ -104,7 +105,7 @@ class CommonController
 
     #[OA\Get(
         path: '/api/v1/common/catalog-services-doctor',
-        summary: 'Obtener todos los doctores por ID del servicio a facturar',
+        summary: 'Obtener todos los doctores por ID del servicio.',
         tags: ['Common'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -171,7 +172,7 @@ class CommonController
 
         if (! $user) {
             return response()->json([
-                'success' => false,
+                'isSuccess' => false,
                 'message' => 'Paciente no encontrado',
             ], 200);
         }
@@ -240,5 +241,62 @@ class CommonController
         });
 
         return response()->json($data, 200);
+    }
+
+    #[OA\Get(
+        path: '/api/v1/common/call-next-queue',
+        summary: 'Llamar siguiente turno.',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function callNextQueue()
+    {
+        //  Verificar si ya tiene turno activo
+        $existing = QueueManager::with('user.position')
+            ->where('assign_user_id', auth()->id())
+            ->where('status', 'called')
+            ->first();
+
+        if ($existing) {
+            return response()->json($existing, 200);
+        }
+
+        // Buscar nuevo turno
+        $q = DB::transaction(function () {
+
+            $q = QueueManager::with('user.position')
+                ->whereBetween('created_at', [
+                    Carbon::today()->startOfDay(),
+                    Carbon::today()->endOfDay(),
+                ])
+                ->where('status', 'pending')
+                ->orderBy('created_at', 'asc')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $q) {
+                return null;
+            }
+
+            $q->update([
+                'assign_user_id' => auth()->id(),
+                'status' => 'called',
+            ]);
+
+            return $q;
+        });
+
+        if (! $q) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'No hay turnos disponible.',
+            ], 200);
+        }
+
+        return response()->json($q, 200);
     }
 }
