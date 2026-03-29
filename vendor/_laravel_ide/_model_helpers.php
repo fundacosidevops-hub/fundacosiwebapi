@@ -4992,7 +4992,6 @@ namespace App\Models {
      * @property mixed $assign_user_id
      * @property string $patient_id
      * @property string $ticket
-     * @property mixed $location
      * @property mixed $curr_number
      * @property string $queue_code
      * @property int $id
@@ -5002,7 +5001,6 @@ namespace App\Models {
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereQueueCode($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereCurrNumber($value)
-     * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereLocation($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereTicket($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager wherePatientId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<QueueManager>|QueueManager whereAssignUserId($value)
