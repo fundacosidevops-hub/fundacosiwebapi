@@ -13,6 +13,8 @@ Route::prefix('v1')->group(function () {
     Route::get('common/insurance', [CommonController::class, 'getInsurance']);
     Route::get('common/catalog-services', [CommonController::class, 'getCatalogServices']);
     Route::get('common/catalog-services-doctor', [CommonController::class, 'getDoctorsByCatalogServices']);
+    Route::get('common/all-ticket', [CommonController::class, 'allTicket']);
+
     Route::middleware('auth:api')->group(function () {
         /* POST */
         Route::post('saveUser', [AuthController::class, 'saveUser']);

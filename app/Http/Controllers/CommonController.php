@@ -299,4 +299,23 @@ class CommonController
 
         return response()->json($q, 200);
     }
+
+    #[OA\Get(
+        path: '/api/v1/common/all-ticket',
+        summary: 'Obtener todos los turnos.',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function allTicket()
+    {
+        return response()->json(
+            QueueManager::with('user.position')
+                ->whereNotNull('assign_user_id')
+                ->get(), 200
+        );
+    }
 }

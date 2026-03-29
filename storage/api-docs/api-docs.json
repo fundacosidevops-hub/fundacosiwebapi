@@ -677,6 +677,28 @@
                     }
                 ]
             }
+        },
+        "/api/v1/common/all-ticket": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Obtener todos los turnos.",
+                "operationId": "ee8f916c40291050021fce2dcd4f9757",
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
