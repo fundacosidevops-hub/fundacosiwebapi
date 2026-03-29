@@ -315,6 +315,7 @@ class CommonController
         return response()->json(
             QueueManager::with('user.position')
                 ->whereNotNull('assign_user_id')
+                ->orderBy('created_at', 'asc')
                 ->get(), 200
         );
     }
