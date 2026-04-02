@@ -28,6 +28,7 @@ class UserInfoResource extends JsonResource
             'nationalities' => $this->nationalities,
             'marital_statuses' => $this->maritalStatus,
             'insurance' => $this->insurance,
+            'userLocations' => $this->userLocations,
             'document_types' => $this->documentType,
             'document_number' => $this->document_number,
             'user_type' => $this->userType,

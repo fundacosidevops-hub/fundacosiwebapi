@@ -134,6 +134,7 @@ class AuthController extends Controller
             'maritalStatus',
             'documentType',
             'insurance',
+            'userLocations',
             'userType',
             'roles',
         ]);

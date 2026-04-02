@@ -29,6 +29,7 @@ return new class extends Migration
             $table->foreignId('marital_status_id')->nullable()->constrained('marital_statuses');
             $table->foreignId('nationalities_id')->nullable()->constrained('nationalities');
             $table->foreignId('user_type_id')->nullable()->constrained('user_types');
+            $table->foreignId('user_locations_id')->nullable()->constrained('user_locations');
             $table->date('birth_date')->nullable();
             $table->foreignId('document_type_id')->nullable()->constrained('document_types');
             $table->string('document_number', 25)->nullable();

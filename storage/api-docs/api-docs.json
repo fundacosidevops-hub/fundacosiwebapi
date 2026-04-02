@@ -663,6 +663,18 @@
                 ],
                 "summary": "Llamar siguiente turno.",
                 "operationId": "8160f09c19a164a384aa35b7a574c795",
+                "parameters": [
+                    {
+                        "name": "userLocationsId",
+                        "in": "query",
+                        "description": "Id ubicacion usuario.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "00107508525"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Datos obtenido correctamente"
@@ -678,13 +690,47 @@
                 ]
             }
         },
-        "/api/v1/common/all-ticket": {
+        "/api/v1/common/get-ticket-location": {
             "get": {
                 "tags": [
                     "Common"
                 ],
-                "summary": "Obtener todos los turnos.",
-                "operationId": "ee8f916c40291050021fce2dcd4f9757",
+                "summary": "Obtener todos los turnos por ubicacion.",
+                "operationId": "fd9a8f9f2de4c2926f7b8ab522b35b4a",
+                "parameters": [
+                    {
+                        "name": "locationId",
+                        "in": "query",
+                        "description": "Ubicacion del kiosko",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "00107508525"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/get-user-locations": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Obtener todos las ubicaciones.",
+                "operationId": "17e0e03d05228e73a9e9063252dc2fcf",
                 "responses": {
                     "200": {
                         "description": "Datos obtenido correctamente"

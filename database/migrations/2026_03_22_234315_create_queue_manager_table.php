@@ -16,6 +16,7 @@ return new class extends Migration
 
             $table->string('queue_code');
             $table->integer('curr_number');
+            $table->integer('location')->default(1);
             $table->string('ticket');
             $table->string('patient_id');
 

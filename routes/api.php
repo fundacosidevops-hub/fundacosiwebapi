@@ -13,7 +13,7 @@ Route::prefix('v1')->group(function () {
     Route::get('common/insurance', [CommonController::class, 'getInsurance']);
     Route::get('common/catalog-services', [CommonController::class, 'getCatalogServices']);
     Route::get('common/catalog-services-doctor', [CommonController::class, 'getDoctorsByCatalogServices']);
-    Route::get('common/all-ticket', [CommonController::class, 'allTicket']);
+    Route::get('common/get-ticket-location', [CommonController::class, 'getTicketByLocation']);
 
     Route::middleware('auth:api')->group(function () {
         /* POST */
@@ -29,6 +29,7 @@ Route::prefix('v1')->group(function () {
         Route::get('billing/payment-methods', [BillingController::class, 'getPaymentMethods']);
         Route::get('common/medical-studies', [CommonController::class, 'getStudiesByInsurance']);
         Route::get('common/call-next-queue', [CommonController::class, 'callNextQueue']);
+        Route::get('common/get-user-locations', [CommonController::class, 'getUserLocations']);
 
     });
 });

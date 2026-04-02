@@ -9,6 +9,7 @@ use App\Models\InsurancesRate;
 use App\Models\MedicalCatalogServices;
 use App\Models\QueueManager;
 use App\Models\User;
+use App\Models\UserLocations;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -248,32 +249,50 @@ class CommonController
         summary: 'Llamar siguiente turno.',
         tags: ['Common'],
         security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'userLocationsId',
+                in: 'query',
+                required: true,
+                description: 'Id ubicacion usuario.',
+                schema: new OA\Schema(type: 'string'),
+                example: '00107508525'
+            ),
+        ],
         responses: [
             new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
             new OA\Response(response: 401, description: 'No autorizado'),
         ]
     )]
-    public function callNextQueue()
+    public function callNextQueue(Request $request)
     {
+        $validated = $request->validate([
+            'userLocationsId' => 'nullable|integer',
+        ]);
         //  Verificar si ya tiene turno activo
         $existing = QueueManager::with('user.position')
             ->where('assign_user_id', auth()->id())
+            ->where('location', $validated['userLocationsId'])
+            ->whereBetween('created_at', [
+                Carbon::today()->startOfDay(),
+                Carbon::today()->endOfDay(), ])
             ->where('status', 'called')
+            ->lockForUpdate()
             ->first();
 
         if ($existing) {
-            return response()->json($existing, 200);
+            return response()->json(['isSuccess' => true, 'message' => '', 'data' => $existing], 200);
         }
 
         // Buscar nuevo turno
-        $q = DB::transaction(function () {
+        $q = DB::transaction(function () use ($validated) {
 
-            $q = QueueManager::with('user.position')
-                ->whereBetween('created_at', [
-                    Carbon::today()->startOfDay(),
-                    Carbon::today()->endOfDay(),
-                ])
+            $q = QueueManager::whereBetween('created_at', [
+                Carbon::today()->startOfDay(),
+                Carbon::today()->endOfDay(),
+            ])
                 ->where('status', 'pending')
+                ->where('location', $validated['userLocationsId'])
                 ->orderBy('created_at', 'asc')
                 ->lockForUpdate()
                 ->first();
@@ -287,22 +306,56 @@ class CommonController
                 'status' => 'called',
             ]);
 
-            return $q;
+            return $q->load('user.position');
         });
 
         if (! $q) {
             return response()->json([
                 'isSuccess' => false,
                 'message' => 'No hay turnos disponible.',
+                'data' => [],
             ], 200);
         }
 
-        return response()->json($q, 200);
+        return response()->json([
+            'isSuccess' => true, 'message' => '', 'data' => $q], 200);
     }
 
     #[OA\Get(
-        path: '/api/v1/common/all-ticket',
-        summary: 'Obtener todos los turnos.',
+        path: '/api/v1/common/get-ticket-location',
+        summary: 'Obtener todos los turnos por ubicacion.',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'locationId',
+                in: 'query',
+                required: true,
+                description: 'Ubicacion del kiosko',
+                schema: new OA\Schema(type: 'string'),
+                example: '00107508525'
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getTicketByLocation(Request $request)
+    {
+        return response()->json(
+            QueueManager::with('user.position')
+                ->where('location', $request->locationId)
+                ->whereNotNull('assign_user_id')
+                ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
+                ->orderBy('created_at', 'asc')
+                ->get(), 200
+        );
+    }
+
+    #[OA\Get(
+        path: '/api/v1/common/get-user-locations',
+        summary: 'Obtener todos las ubicaciones.',
         tags: ['Common'],
         security: [['bearerAuth' => []]],
         responses: [
@@ -310,13 +363,10 @@ class CommonController
             new OA\Response(response: 401, description: 'No autorizado'),
         ]
     )]
-    public function allTicket()
+    public function getUserLocations()
     {
         return response()->json(
-            QueueManager::with('user.position')
-                ->whereNotNull('assign_user_id')
-                ->orderBy('created_at', 'asc')
-                ->get(), 200
+            UserLocations::all(), 200
         );
     }
 }
