@@ -745,6 +745,50 @@
                     }
                 ]
             }
+        },
+        "/api/v1/skip-turn": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Saltar ticket",
+                "operationId": "fcd0a0b7f08734d6cc2b9ff40c8855c0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "ticketId"
+                                ],
+                                "properties": {
+                                    "ticketId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Usuario creado correctamente"
+                    },
+                    "400": {
+                        "description": "Datos inválidos"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {

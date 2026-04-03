@@ -21,6 +21,7 @@ Route::prefix('v1')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('billing/save-bill', [BillingController::class, 'save']);
         Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
+        Route::post('common/skip-turn', [CommonController::class, 'skipTurn']);
         /* GET */
         Route::get('positions', [AuthController::class, 'positions']);
         Route::get('roles', [AuthController::class, 'roles']);

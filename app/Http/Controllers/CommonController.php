@@ -369,4 +369,62 @@ class CommonController
             UserLocations::all(), 200
         );
     }
+
+    #[OA\Post(
+        path: '/api/v1/skip-turn',
+        summary: 'Saltar ticket',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['ticketId'],
+                properties: [
+                    new OA\Property(property: 'ticketId', type: 'integer', example: 1),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Usuario creado correctamente'),
+            new OA\Response(response: 400, description: 'Datos inválidos'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function skipTurn(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'ticketId' => 'required|integer',
+            ]);
+
+            $data = DB::transaction(function () use ($validated) {
+
+                $updated = QueueManager::where('id', $validated['ticketId'])
+                    ->update(['status' => 'skip']);
+
+                if ($updated === 0) {
+                    throw new \Exception('No se encontró el ticket o no se pudo actualizar.');
+                }
+
+                return $updated;
+            });
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => $data,
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
