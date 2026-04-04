@@ -183,6 +183,68 @@ class AuthController extends Controller
     }
 
     #[OA\Post(
+        path: '/api/v1/save-patient',
+        summary: 'Crear nuevo paciente.',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Sesión cerrada correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function savePatient(Request $request)
+    {
+        $validated = $request->validate([
+            'documentId' => 'required|string|max:50',
+            'name' => 'required|string',
+            'lastName' => 'required|string',
+            'gender' => 'required|string',
+            'nationalitieId' => 'required|integer',
+            'insuranceId' => 'nullable|integer',
+            'civilStatusId' => 'required|integer',
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string|max:20',
+            'policy' => 'nullable|string',
+            'documentTypeId' => 'required|integer',
+            'birthDate' => 'required|string',
+        ]);
+        $data = [
+            'document_number' => $validated['documentId'],
+            'avatar' => 'avatar.jpg',
+            'name' => mb_strtoupper($validated['name'], 'UTF-8'),
+            'last_name' => mb_strtoupper($validated['lastName'], 'UTF-8'),
+            'gender' => $validated['gender'],
+            'marital_status_id' => $validated['civilStatusId'],
+            'birth_date' => $validated['birthDate'],
+            'position_id' => 6,
+            'document_type_id' => $validated['documentTypeId'],
+            'nationalities_id' => $validated['nationalitieId'],
+            'insurance_id' => $validated['insuranceId'],
+            'email' => $validated['email'] ?? $validated['documentId'].'@funsacosixxi.com',
+            'phone' => $validated['phone'],
+            'policy' => $validated['policy'],
+            'user_type_id' => 2,
+            'is_active' => 1,
+        ];
+
+        $user = User::where('document_number', $validated['documentId'])->first();
+
+        if (! $user) {
+            $data['password'] = Hash::make('TempPass123');
+        }
+
+        $user = User::updateOrCreate(
+            [
+                'document_number' => $validated['documentId'],
+                'user_type_id' => 2,
+            ],
+            $data
+        );
+
+        return response()->json($user, 200);
+    }
+
+    #[OA\Post(
         path: '/api/v1/logout',
         summary: 'Cerrar sesión',
         tags: ['Auth'],

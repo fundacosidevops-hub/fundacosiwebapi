@@ -17,6 +17,7 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:api')->group(function () {
         /* POST */
+        Route::post('save-patient', [AuthController::class, 'savePatient']);
         Route::post('saveUser', [AuthController::class, 'saveUser']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('billing/save-bill', [BillingController::class, 'save']);

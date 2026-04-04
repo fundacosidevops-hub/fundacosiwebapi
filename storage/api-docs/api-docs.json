@@ -185,6 +185,28 @@
                 ]
             }
         },
+        "/api/v1/save-patient": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Crear nuevo paciente.",
+                "operationId": "406fb28262e6b8e4b05d1191cc0ed22c",
+                "responses": {
+                    "200": {
+                        "description": "Sesión cerrada correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/v1/logout": {
             "post": {
                 "tags": [

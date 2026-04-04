@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class DocumentType extends Model
 {
-    protected $fillable = ['description'];
+    protected $fillable = ['id', 'description'];
 
     public function users()
     {
