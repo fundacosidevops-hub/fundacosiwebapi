@@ -7,6 +7,7 @@ use App\Models\CatalogServices;
 use App\Models\Insurances;
 use App\Models\InsurancesRate;
 use App\Models\MedicalCatalogServices;
+use App\Models\Nationalities;
 use App\Models\QueueManager;
 use App\Models\User;
 use App\Models\UserLocations;
@@ -426,5 +427,22 @@ class CommonController
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    #[OA\Get(
+        path: '/api/v1/common/get-nationalities',
+        summary: 'Obtener todos las nacionalidades.',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getNationalities()
+    {
+        return response()->json(
+            Nationalities::all(), 200
+        );
     }
 }

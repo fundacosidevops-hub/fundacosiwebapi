@@ -274,6 +274,10 @@
                                         "type": "integer",
                                         "example": 2
                                     },
+                                    "ticketId": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
                                     "billingType": {
                                         "type": "string",
                                         "example": "insured"
@@ -778,6 +782,28 @@
                     },
                     "400": {
                         "description": "Datos inválidos"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/get-nationalities": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Obtener todos las nacionalidades.",
+                "operationId": "6c04c07f01b722329411976dc4ff081f",
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
                     },
                     "401": {
                         "description": "No autorizado"

@@ -7,6 +7,7 @@ use App\Models\InvoiceItems;
 use App\Models\Invoices;
 use App\Models\PaymentMethods;
 use App\Models\Payments;
+use App\Models\QueueManager;
 use App\Models\User;
 use App\Services\NcfService;
 use Illuminate\Http\Request;
@@ -86,6 +87,7 @@ class BillingController extends Controller
                     new OA\Property(property: 'patientId', type: 'string', example: '123456789'),
                     new OA\Property(property: 'doctorId', type: 'integer', example: 1),
                     new OA\Property(property: 'insuranceId', type: 'integer', example: 2),
+                    new OA\Property(property: 'ticketId', type: 'integer', example: 2),
                     new OA\Property(property: 'billingType', type: 'string', example: 'insured'),
                     new OA\Property(property: 'authorizationNumber', type: 'integer', example: 12345),
                     new OA\Property(property: 'catalogServiceId', type: 'integer', example: 1),
@@ -126,7 +128,7 @@ class BillingController extends Controller
             'billingType' => 'required|in:private,insured',
             'authorizationNumber' => 'nullable|integer',
             'catalogServiceId' => 'required|integer',
-
+            'ticketId' => 'nullable|integer',
             'subtotal' => 'required|numeric',
             'discount' => 'required|numeric',
             'total' => 'required|numeric',
@@ -183,7 +185,9 @@ class BillingController extends Controller
                     'total' => $item['total'],
                 ]);
             }
-
+            if ($validated['ticketId']) {
+                QueueManager::where('id', $validated['ticketId'])->update(['status' => 'done']);
+            }
             DB::commit();
             $invoice->load([
                 'patient',

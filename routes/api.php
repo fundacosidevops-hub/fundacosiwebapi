@@ -31,6 +31,7 @@ Route::prefix('v1')->group(function () {
         Route::get('common/medical-studies', [CommonController::class, 'getStudiesByInsurance']);
         Route::get('common/call-next-queue', [CommonController::class, 'callNextQueue']);
         Route::get('common/get-user-locations', [CommonController::class, 'getUserLocations']);
+        Route::get('common/get-nationalities', [CommonController::class, 'getNationalities']);
 
     });
 });
