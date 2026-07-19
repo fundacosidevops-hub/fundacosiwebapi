@@ -23,8 +23,10 @@ Route::prefix('v1')->group(function () {
         Route::post('billing/save-bill', [BillingController::class, 'save']);
         Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
         Route::post('common/skip-turn', [CommonController::class, 'skipTurn']);
+        Route::post('auth/update-user-status', [AuthController::class, 'updateUserStatus']);
         /* GET */
         Route::get('positions', [AuthController::class, 'positions']);
+        Route::get('auth/get-all-users', [AuthController::class, 'getAllUsers']);
         Route::get('roles', [AuthController::class, 'roles']);
         Route::get('profile', [AuthController::class, 'profile']);
         Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);

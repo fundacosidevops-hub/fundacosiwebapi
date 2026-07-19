@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\UserInfoResource;
+use App\Http\Resources\UserListResource;
 use App\Models\Positions;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -262,4 +263,58 @@ class AuthController extends Controller
             'message' => 'Sesión cerrada correctamente',
         ]);
     }
+    #[OA\Get(
+        path: '/api/v1/auth/get-all-users',
+        summary: 'Obtener todos los usuarios',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getAllUsers()
+    {
+          $users = User::with([
+            'position',
+            'nationalities',
+            'maritalStatus',
+            'documentType',
+            'insurance',
+            'userLocations',
+            'userType',
+            'roles' 
+        ])->where('user_type_id', 3)->get();
+
+       return UserListResource::collection($users);
+    }
+
+    #[OA\Post(
+    path: '/api/v1/auth/update-user-status',
+    summary: 'Actualizar el estado de un usuario.',
+    tags: ['Auth'],
+    security: [['bearerAuth' => []]],
+    responses: [
+        new OA\Response(response: 200, description: 'Estado actualizado correctamente'),
+        new OA\Response(response: 404, description: 'Usuario no encontrado'),
+        new OA\Response(response: 401, description: 'No autorizado'),
+    ]
+)]
+public function updateUserStatus(Request $request)
+{
+    $validated = $request->validate([
+        'id' => 'required|integer|exists:users,id',
+        'isActive' => 'required|boolean',
+    ]);
+
+    $user = User::findOrFail($validated['id']);
+
+    $user->is_active = $validated['isActive'];
+    $user->save();
+
+    return response()->json([
+        'message' => 'Estado actualizado correctamente',
+        'user' => $user,
+    ], 200);
+}
 }

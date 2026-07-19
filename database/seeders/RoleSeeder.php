@@ -21,7 +21,11 @@ class RoleSeeder extends Seeder
         */
 
         $permissions = [
-
+            // Doctor
+            'doctor.view',
+            'doctor.create',
+            'doctor.update',
+            'doctor.delete',
             // Pacientes
             'patients.view',
             'patients.create',

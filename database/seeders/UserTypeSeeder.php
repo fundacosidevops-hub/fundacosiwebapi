@@ -12,6 +12,7 @@ class UserTypeSeeder extends Seeder
         DB::table('user_types')->upsert([
             ['description' => 'Empleado'],
             ['description' => 'Paciente'],
+            ['description' => 'Doctor'] 
         ],
             ['description'], // clave única
             []);
