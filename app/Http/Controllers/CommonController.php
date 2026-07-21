@@ -7,6 +7,7 @@ use App\Models\CatalogServices;
 use App\Models\Insurances;
 use App\Models\InsurancesRate;
 use App\Models\MedicalCatalogServices;
+use App\Models\MedicalAssistance;
 use App\Models\Nationalities;
 use App\Models\QueueManager;
 use App\Models\User;
@@ -185,7 +186,7 @@ class CommonController
     #[OA\Post(
         path: '/api/v1/save-ticket',
         summary: 'Guardar ticket',
-        tags: ['Auth'],
+        tags: ['Common'],
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(
             required: true,
@@ -374,7 +375,7 @@ class CommonController
     #[OA\Post(
         path: '/api/v1/skip-turn',
         summary: 'Saltar ticket',
-        tags: ['Auth'],
+        tags: ['Common'],
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(
             required: true,
@@ -446,5 +447,84 @@ class CommonController
         );
     }
 
-    
+        #[OA\Post(
+        path: '/api/v1/common/update-assistances-doctor',
+        summary: 'Guardar asistencia del doctor',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['doctorId', 'startTime', 'patientQuantity'],
+                properties: [
+                    new OA\Property(property: 'doctorId', type: 'integer', example: 2),
+                    new OA\Property(property: 'startTime', type: 'string', example: '08:00'),
+                    new OA\Property(property: 'patientQuantity', type: 'integer', example: 25),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Factura creada correctamente'),
+            new OA\Response(response: 400, description: 'Datos inválidos'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )] 
+
+public function updateAssistancesDoctor(Request $request)
+{
+    $validated = $request->validate([
+        'doctorId' => 'required|integer',
+        'startTime' => 'nullable',
+        'patientQuantity' => 'nullable|integer',
+    ]);
+
+    DB::beginTransaction();
+
+    try {
+
+        $nextDate = Carbon::now()->addDay()->toDateString();
+
+        // Buscar si ya existe un registro del doctor creado hoy
+        $medicalAssistance = MedicalAssistance::where('doctor_id', $validated['doctorId'])
+            ->whereDate('created_at', Carbon::today())
+            ->first();
+
+        if ($medicalAssistance) {
+
+            // Actualizar
+            $medicalAssistance->update([
+                'start_time' => $request->input('startTime'),
+                'patient_quantity' => $request->input('patientQuantity'),
+                'next_date' => $nextDate,
+            ]);
+
+        } else {
+
+            // Insertar
+            MedicalAssistance::create([
+                'doctor_id' => $validated['doctorId'],
+                'start_time' => $request->input('startTime'),
+                'end_time' => null,
+                'patient_quantity' => $request->input('patientQuantity'),
+                'next_date' => $nextDate,
+            ]);
+
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'message' => 'Asistencia guardada correctamente'
+        ], 200);
+
+    } catch (\Exception $e) {
+
+        DB::rollBack();
+
+        return response()->json([
+            'message' => 'Error al guardar la asistencia',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
 }

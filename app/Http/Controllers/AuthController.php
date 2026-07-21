@@ -277,6 +277,7 @@ class AuthController extends Controller
     {
           $users = User::with([
             'position',
+            'medicalAssistances',
             'nationalities',
             'maritalStatus',
             'documentType',

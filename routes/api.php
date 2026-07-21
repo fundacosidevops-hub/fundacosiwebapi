@@ -24,6 +24,7 @@ Route::prefix('v1')->group(function () {
         Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
         Route::post('common/skip-turn', [CommonController::class, 'skipTurn']);
         Route::post('auth/update-user-status', [AuthController::class, 'updateUserStatus']);
+        Route::post('common/update-assistances-doctor', [CommonController::class, 'updateAssistancesDoctor']);
         /* GET */
         Route::get('positions', [AuthController::class, 'positions']);
         Route::get('auth/get-all-users', [AuthController::class, 'getAllUsers']);

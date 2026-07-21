@@ -663,7 +663,7 @@
         "/api/v1/save-ticket": {
             "post": {
                 "tags": [
-                    "Auth"
+                    "Common"
                 ],
                 "summary": "Guardar ticket",
                 "operationId": "ed86ba6b1adac180f56c9ffef3a89bcb",
@@ -822,7 +822,7 @@
         "/api/v1/skip-turn": {
             "post": {
                 "tags": [
-                    "Auth"
+                    "Common"
                 ],
                 "summary": "Saltar ticket",
                 "operationId": "fcd0a0b7f08734d6cc2b9ff40c8855c0",
@@ -873,6 +873,60 @@
                 "responses": {
                     "200": {
                         "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/update-assistances-doctor": {
+            "post": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Guardar asistencia del doctor",
+                "operationId": "011fef27fd6f18ab190c7bde85a0d282",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "doctorId",
+                                    "startTime",
+                                    "patientQuantity"
+                                ],
+                                "properties": {
+                                    "doctorId": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "startTime": {
+                                        "type": "string",
+                                        "example": "08:00"
+                                    },
+                                    "patientQuantity": {
+                                        "type": "integer",
+                                        "example": 25
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Factura creada correctamente"
+                    },
+                    "400": {
+                        "description": "Datos inválidos"
                     },
                     "401": {
                         "description": "No autorizado"

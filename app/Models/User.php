@@ -80,7 +80,10 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->belongsTo(CatalogServices::class);
     }
-
+    public function medicalAssistances()
+    {
+        return $this->hasOne(MedicalAssistance::class, 'doctor_id', 'id');
+    }
     public function medicalCatalogServices()
     {
         return $this->belongsTo(MedicalCatalogServices::class);

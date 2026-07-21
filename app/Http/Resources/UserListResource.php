@@ -29,6 +29,7 @@ class UserListResource extends JsonResource
             'marital_statuses' => $this->maritalStatus,
             'insurance' => $this->insurance,
             'userLocations' => $this->userLocations,
+            'medicalAssistances' => $this->medicalAssistances,
             'document_types' => $this->documentType,
             'document_number' => $this->document_number,
             'user_type' => $this->userType,
