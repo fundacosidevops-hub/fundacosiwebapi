@@ -25,6 +25,7 @@ return new class extends Migration
 
             // Cantidad de pacientes
             $table->unsignedInteger('patient_quantity');
+            $table->boolean('is_active')->default(false);
 
             // Fecha del siguiente día o próxima asistencia
             $table->date('next_date');

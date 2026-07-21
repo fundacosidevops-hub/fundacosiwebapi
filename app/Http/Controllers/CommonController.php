@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\UserInfoResource;
+use App\Http\Resources\UserListResource;
 use App\Models\CatalogServices;
 use App\Models\Insurances;
 use App\Models\InsurancesRate;
@@ -460,6 +461,7 @@ class CommonController
                     new OA\Property(property: 'doctorId', type: 'integer', example: 2),
                     new OA\Property(property: 'startTime', type: 'string', example: '08:00'),
                     new OA\Property(property: 'patientQuantity', type: 'integer', example: 25),
+                    new OA\Property(property: 'isActive', type: 'boolean', example: false),
                 ]
             )
         ),
@@ -476,6 +478,7 @@ public function updateAssistancesDoctor(Request $request)
         'doctorId' => 'required|integer',
         'startTime' => 'nullable',
         'patientQuantity' => 'nullable|integer',
+        'isActive' => 'boolean',
     ]);
 
     DB::beginTransaction();
@@ -495,6 +498,7 @@ public function updateAssistancesDoctor(Request $request)
             $medicalAssistance->update([
                 'start_time' => $request->input('startTime'),
                 'patient_quantity' => $request->input('patientQuantity'),
+                'is_active' => $request->input('isActive'),
                 'next_date' => $nextDate,
             ]);
 
@@ -506,6 +510,7 @@ public function updateAssistancesDoctor(Request $request)
                 'start_time' => $request->input('startTime'),
                 'end_time' => null,
                 'patient_quantity' => $request->input('patientQuantity'),
+                'is_active' => $request->input('isActive'),
                 'next_date' => $nextDate,
             ]);
 
@@ -527,4 +532,34 @@ public function updateAssistancesDoctor(Request $request)
         ], 500);
     }
 }
+
+ #[OA\Get(
+        path: '/api/v1/common/get-all-doctors',
+        summary: 'Obtener todos los usuarios',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getAllDoctors()
+    {
+          $users = User::with([
+            'position',
+             'medicalAssistances' => function ($query) {
+                $query->whereDate('created_at', Carbon::today());
+            },
+            'nationalities',
+            'maritalStatus',
+            'documentType',
+            'insurance',
+            'userLocations',
+            'userType',
+            'roles' 
+        ])
+        ->where('user_type_id', 3) ->get();
+
+       return UserListResource::collection($users);
+    } 
 }

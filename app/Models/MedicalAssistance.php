@@ -11,6 +11,7 @@ class MedicalAssistance extends Model
         'start_time',
         'end_time',
         'patient_quantity',
+        'is_active',
         'next_date',
     ];
 

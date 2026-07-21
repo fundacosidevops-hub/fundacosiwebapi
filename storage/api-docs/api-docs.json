@@ -229,53 +229,6 @@
                 ]
             }
         },
-        "/api/v1/auth/get-all-users": {
-            "get": {
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Obtener todos los usuarios",
-                "operationId": "3bacde5c3e07f0e9312e48df9f01382e",
-                "responses": {
-                    "200": {
-                        "description": "Datos obtenido correctamente"
-                    },
-                    "401": {
-                        "description": "No autorizado"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/auth/update-user-status": {
-            "post": {
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Actualizar el estado de un usuario.",
-                "operationId": "c737ce49fc6396cc3faf4ef76a080369",
-                "responses": {
-                    "200": {
-                        "description": "Estado actualizado correctamente"
-                    },
-                    "404": {
-                        "description": "Usuario no encontrado"
-                    },
-                    "401": {
-                        "description": "No autorizado"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/v1/billing/user-info": {
             "get": {
                 "tags": [
@@ -914,6 +867,10 @@
                                     "patientQuantity": {
                                         "type": "integer",
                                         "example": 25
+                                    },
+                                    "isActive": {
+                                        "type": "boolean",
+                                        "example": false
                                     }
                                 },
                                 "type": "object"
@@ -927,6 +884,28 @@
                     },
                     "400": {
                         "description": "Datos inválidos"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/get-all-doctors": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Obtener todos los usuarios",
+                "operationId": "4cd4da1fc96baac4506d1e103a4806aa",
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
                     },
                     "401": {
                         "description": "No autorizado"
