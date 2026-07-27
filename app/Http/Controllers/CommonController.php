@@ -129,15 +129,27 @@ class CommonController
     public function getDoctorsByCatalogServices(Request $request)
     {
         return response()->json(
-            MedicalCatalogServices::with('users')
-                ->where('catalog_services_id', $request->service_id)
-                ->whereHas('users', function ($q) {
-                    $q->where('is_active', true);
-                })
-                ->get()
-                ->map(function ($res) {
-                    return $res->users;
-                })
+    MedicalCatalogServices::with('users', 'users.medicalAssistances')
+        ->where('catalog_services_id', $request->service_id)
+        ->whereHas('users.medicalAssistances', function ($q) {
+
+            $q->where('is_active', true)
+              ->whereDate('created_at', now())
+              ->whereRaw("
+                    patient_quantity >
+                    (
+                        SELECT COUNT(*)
+                        FROM in_invoices
+                        WHERE in_invoices.doctor_id = medical_assistances.doctor_id
+                        AND DATE(in_invoices.created_at) = CURDATE()
+                    )
+              ");
+
+        })
+        ->get()
+        ->map(function ($res) {
+            return $res->users;
+        })
         );
     }
 
@@ -472,8 +484,8 @@ class CommonController
         ]
     )] 
 
-public function updateAssistancesDoctor(Request $request)
-{
+    public function updateAssistancesDoctor(Request $request)
+    {
     $validated = $request->validate([
         'doctorId' => 'required|integer',
         'startTime' => 'nullable',
@@ -531,9 +543,9 @@ public function updateAssistancesDoctor(Request $request)
             'error' => $e->getMessage(),
         ], 500);
     }
-}
+    }
 
- #[OA\Get(
+    #[OA\Get(
         path: '/api/v1/common/get-all-doctors',
         summary: 'Obtener todos los usuarios',
         tags: ['Auth'],

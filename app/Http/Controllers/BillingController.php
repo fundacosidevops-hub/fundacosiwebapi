@@ -64,7 +64,7 @@ class BillingController extends Controller
 
     }
 
-    public function generateNextInvoice($lastInvoice)
+    public function generateNextInvoice(string $lastInvoice): string
     {
         $prefix = substr($lastInvoice, 0, 1); // B
         $number = substr($lastInvoice, 1);    // 20569988
