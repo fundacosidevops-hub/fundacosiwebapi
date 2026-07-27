@@ -16,7 +16,7 @@ Route::prefix('v1')->group(function () {
     Route::get('common/get-ticket-location', [CommonController::class, 'getTicketByLocation']);
 
     Route::middleware('auth:api')->group(function () {
-        /* POST */
+        /* POST  */
         Route::post('save-patient', [AuthController::class, 'savePatient']);
         Route::post('saveUser', [AuthController::class, 'saveUser']);
         Route::post('logout', [AuthController::class, 'logout']);
