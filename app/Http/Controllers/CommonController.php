@@ -212,6 +212,7 @@ class CommonController
                     new OA\Property(property: 'catalogServiceId', type: 'integer', example: 1),
                     new OA\Property(property: 'doctorId', type: 'integer', example: 1),
                     new OA\Property(property: 'billingType', type: 'string', example: 'private'),
+                    new OA\Property(property: 'specialTurn', type: 'boolean', example: false),
                 ]
             )
         ),
@@ -230,6 +231,7 @@ class CommonController
             'insuranceId' => 'nullable|integer',
             'doctorId' => 'required|integer',
             'billingType' => 'required|string',
+            'specialTurn' => 'nullable|boolean',
         ]);
         DB::transaction(function () use ($validated, &$data) {
 
@@ -252,6 +254,7 @@ class CommonController
                 'insurance_id' => $validated['insuranceId'],
                 'catalog_services_id' => $validated['catalogServiceId'],
                 'doctor_id' => $validated['doctorId'],
+                'special_turn' => $validated['specialTurn'],
             ]);
 
         });
@@ -302,27 +305,39 @@ class CommonController
         // Buscar nuevo turno
         $q = DB::transaction(function () use ($validated) {
 
-            $q = QueueManager::whereBetween('created_at', [
-                Carbon::today()->startOfDay(),
-                Carbon::today()->endOfDay(),
-            ])
-                ->where('status', 'pending')
-                ->where('location', $validated['userLocationsId'])
-                ->orderBy('created_at', 'asc')
-                ->lockForUpdate()
-                ->first();
-
-            if (! $q) {
-                return null;
-            }
-
-            $q->update([
-                'assign_user_id' => auth()->id(),
-                'status' => 'called',
-            ]);
-
-            return $q->load('user.position');
-        });
+              $baseQuery = QueueManager::whereBetween('created_at', [
+                      Carbon::today()->startOfDay(),
+                      Carbon::today()->endOfDay(),
+                  ])
+                  ->where('status', 'pending')
+                  ->where('location', $validated['userLocationsId']);
+          
+              // Buscar primero un turno especial
+              $q = (clone $baseQuery)
+                  ->where('special_turn', true)
+                  ->orderBy('created_at', 'asc')
+                  ->lockForUpdate()
+                  ->first();
+          
+              // Si no hay turnos especiales, tomar el más antiguo sin importar si es especial o no
+              if (! $q) {
+                  $q = (clone $baseQuery)
+                      ->orderBy('created_at', 'asc')
+                      ->lockForUpdate()
+                      ->first();
+              }
+          
+              if (! $q) {
+                  return null;
+              }
+          
+              $q->update([
+                  'assign_user_id' => auth()->id(),
+                  'status' => 'called',
+              ]);
+          
+              return $q->load('user.position');
+          });
 
         if (! $q) {
             return response()->json([

@@ -20,6 +20,7 @@ class QueueManager extends Model
         'insurance_id',
         'catalog_services_id',
         'doctor_id',
+        'special_turn',
     ];
 
     /*
