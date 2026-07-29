@@ -519,11 +519,9 @@ class CommonController
 
         // Buscar si ya existe un registro del doctor creado hoy
        $medicalAssistance = MedicalAssistance::where('doctor_id', $validated['doctorId'])
-    ->whereBetween('created_at', [
-        Carbon::today()->startOfDay(),
-        Carbon::today()->setTime(18, 50, 0),
-    ])
-    ->first();
+        ->whereDate('created_at', Carbon::today())
+        ->whereTime('created_at', '<=', '18:57:00')
+        ->first();
 
         if ($medicalAssistance) {
 
@@ -581,10 +579,8 @@ class CommonController
           $users = User::with([
             'position',
             'medicalAssistances' => function ($query) {
-                  $query->whereBetween('created_at', [
-                    Carbon::today()->startOfDay(),
-                    Carbon::today()->setTime(18, 50, 0),
-                ]);
+                $query->whereDate('created_at', Carbon::today())
+                ->whereTime('created_at', '<=', '18:57:00');
             },
             'nationalities',
             'maritalStatus',
