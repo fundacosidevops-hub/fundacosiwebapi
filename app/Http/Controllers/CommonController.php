@@ -518,10 +518,13 @@ class CommonController
         $nextDate = Carbon::now()->addDay()->toDateString();
 
         // Buscar si ya existe un registro del doctor creado hoy
-       $medicalAssistance = MedicalAssistance::where('doctor_id', $validated['doctorId'])
-        ->whereDate('created_at', Carbon::today())
-        ->whereTime('created_at', '<=', '18:57:00')
-        ->first();
+       $query = MedicalAssistance::where('doctor_id', $validated['doctorId']);
+
+        if (Carbon::now()->gte(Carbon::today()->setTime(19, 10))) {
+            $query->whereDate('created_at', Carbon::today());
+        }
+
+        $medicalAssistance = $query->first();
 
         if ($medicalAssistance) {
 
@@ -575,23 +578,27 @@ class CommonController
         ]
     )]
     public function getAllDoctors()
-    {
-          $users = User::with([
-            'position',
-            'medicalAssistances' => function ($query) {
-                $query->whereDate('created_at', Carbon::today())
-                ->whereTime('created_at', '<=', '18:57:00');
-            },
-            'nationalities',
-            'maritalStatus',
-            'documentType',
-            'insurance',
-            'userLocations',
-            'userType',
-            'roles' 
-        ])
-        ->where('user_type_id', 3) ->get();
+    { 
+    $query = User::with([
+    'position',
+    'nationalities',
+    'maritalStatus',
+    'documentType',
+    'insurance',
+    'userLocations',
+    'userType',
+    'roles',
+    ]);
 
-       return UserListResource::collection($users);
+    if (Carbon::now()->gte(Carbon::today()->setTime(19, 10))) {
+    $query->with([
+        'medicalAssistances' => function ($query) {
+            $query->whereDate('created_at', Carbon::today());
+            }
+          ]);
+        }
+
+             $users = $query->where('user_type_id', 3)->get();
+             return UserListResource::collection($users);
     } 
 }
