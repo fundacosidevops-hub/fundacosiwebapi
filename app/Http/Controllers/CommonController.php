@@ -578,7 +578,10 @@ class CommonController
           $users = User::with([
             'position',
             'medicalAssistances' => function ($query) {
-                $query->whereDate('created_at', Carbon::today());
+                  $query->whereBetween('created_at', [
+            Carbon::today()->startOfDay(),
+            Carbon::today()->setTime(15, 0, 0),
+        ]);
             },
             'nationalities',
             'maritalStatus',
