@@ -518,14 +518,12 @@ class CommonController
         $nextDate = Carbon::now()->addDay()->toDateString();
 
         // Buscar si ya existe un registro del doctor creado hoy
-       $query = MedicalAssistance::where('doctor_id', $validated['doctorId']);
-
         if (Carbon::now()->gte(Carbon::today()->setTime(19, 10))) {
-            $query->whereDate('created_at', Carbon::today());
-        }
+            $query = MedicalAssistance::where('doctor_id', $validated['doctorId'])
+            ->whereDate('created_at', Carbon::today());
+        } 
 
         $medicalAssistance = $query->first();
-
         if ($medicalAssistance) {
 
             // Actualizar
