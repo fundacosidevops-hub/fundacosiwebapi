@@ -141,7 +141,7 @@ class CommonController
                         SELECT COUNT(*)
                         FROM in_invoices
                         WHERE in_invoices.doctor_id = medical_assistances.doctor_id
-                        AND DATE(in_invoices.next_date) = CURDATE()
+                        AND DATE(in_invoices.created_at) = CURDATE()
                     )
               ");
 
