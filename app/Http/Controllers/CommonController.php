@@ -134,14 +134,14 @@ class CommonController
         ->whereHas('users.medicalAssistances', function ($q) {
 
             $q->where('is_active', true)
-              ->whereDate('created_at', now())
+              ->whereDate('next_date', now())
               ->whereRaw("
                     patient_quantity >
                     (
                         SELECT COUNT(*)
                         FROM in_invoices
                         WHERE in_invoices.doctor_id = medical_assistances.doctor_id
-                        AND DATE(in_invoices.created_at) = CURDATE()
+                        AND DATE(in_invoices.next_date) = CURDATE()
                     )
               ");
 
