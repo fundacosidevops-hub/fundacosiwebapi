@@ -519,7 +519,7 @@ class CommonController
 
         // Buscar si ya existe un registro del doctor creado hoy
         $medicalAssistance = MedicalAssistance::where('doctor_id', $validated['doctorId'])
-            ->whereDate('next_date', Carbon::today())
+            ->whereDate('created_at', Carbon::today())
             ->first();
 
         if ($medicalAssistance) {
