@@ -204,10 +204,11 @@ class CommonController
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['code', 'documentId', 'insuranceId', 'catalogServiceId', 'doctorId', 'billingType'],
+                required: ['code', 'documentId','locationId', 'insuranceId', 'catalogServiceId', 'doctorId', 'billingType'],
                 properties: [
                     new OA\Property(property: 'code', type: 'string', example: 'AA1'),
                     new OA\Property(property: 'documentId', type: 'string', example: '00118479953'),
+                    new OA\Property(property: 'locationId', type: 'integer', example: 1),
                     new OA\Property(property: 'insuranceId', type: 'integer', example: 1),
                     new OA\Property(property: 'catalogServiceId', type: 'integer', example: 1),
                     new OA\Property(property: 'doctorId', type: 'integer', example: 1),
@@ -227,6 +228,7 @@ class CommonController
         $validated = $request->validate([
             'code' => 'required|string',
             'documentId' => 'required|string|max:20',
+            'locationId' => 'required|integer',
             'catalogServiceId' => 'required|integer',
             'insuranceId' => 'nullable|integer',
             'doctorId' => 'required|integer',
@@ -249,6 +251,7 @@ class CommonController
                 'curr_number' => $nextNumber,
                 'ticket' => $ticket,
                 'patient_id' => $validated['documentId'],
+                'location' => $validated['locationId'],
                 'assign_user_id' => null,
                 'billing_type' => $validated['billingType'],
                 'insurance_id' => $validated['insuranceId'],

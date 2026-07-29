@@ -628,6 +628,7 @@
                                 "required": [
                                     "code",
                                     "documentId",
+                                    "locationId",
                                     "insuranceId",
                                     "catalogServiceId",
                                     "doctorId",
@@ -641,6 +642,10 @@
                                     "documentId": {
                                         "type": "string",
                                         "example": "00118479953"
+                                    },
+                                    "locationId": {
+                                        "type": "integer",
+                                        "example": 1
                                     },
                                     "insuranceId": {
                                         "type": "integer",

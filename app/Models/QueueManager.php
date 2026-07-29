@@ -12,6 +12,7 @@ class QueueManager extends Model
     protected $fillable = [
         'queue_code',
         'curr_number',
+        'location',
         'ticket',
         'status',
         'patient_id',
