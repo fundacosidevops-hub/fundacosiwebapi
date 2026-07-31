@@ -246,7 +246,7 @@ class CommonController
 
             $ticket = $validated['code'].'-'.str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
 
-            $data = QueueManager::create([
+             QueueManager::create([
                 'queue_code' => $validated['code'],
                 'curr_number' => $nextNumber,
                 'ticket' => $ticket,
@@ -259,7 +259,11 @@ class CommonController
                 'doctor_id' => $validated['doctorId'],
                 'special_turn' => $validated['specialTurn'],
             ]);
-
+            $data = QueueManager::with('doctor.position')
+                ->where('patient_id', $validated['documentId'])
+                ->where('ticket', $ticket)
+                ->where('doctor_id', $validated['doctorId'])
+                ->whereDate('created_at', now())->first();
         });
 
         return response()->json($data, 200);
@@ -585,6 +589,7 @@ class CommonController
                 ->where('status_id', 3);
             },
             'billingPatients.patient',
+            'billingPatients.doctor.position',
             'billingPatients.patient.queueManager' => function ($query) {
                 $query->whereDate('created_at', Carbon::today())
                 ->where('status', 'done');
