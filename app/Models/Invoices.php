@@ -51,8 +51,7 @@ class Invoices extends Model
     public function doctor()
     {
         return $this->belongsTo(User::class, 'doctor_id');
-    }
-
+    } 
     public function insurance()
     {
         return $this->belongsTo(Insurances::class);
@@ -76,8 +75,7 @@ class Invoices extends Model
     public function payments()
     {
         return $this->hasMany(Payments::class);
-    }
-
+    } 
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

@@ -577,8 +577,17 @@ class CommonController
     {
           $users = User::with([
             'position',
-             'medicalAssistances' => function ($query) {
+            'medicalAssistances' => function ($query) {
                 $query->whereDate('created_at', Carbon::today());
+            },   
+            'billingPatients' => function ($query) {
+                $query->whereDate('created_at', Carbon::today())
+                ->where('status_id', 3);
+            },
+            'billingPatients.patient',
+            'billingPatients.patient.queueManager' => function ($query) {
+                $query->whereDate('created_at', Carbon::today())
+                ->where('status', 'done');
             },
             'nationalities',
             'maritalStatus',

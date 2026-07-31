@@ -43,5 +43,5 @@ class QueueManager extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'assign_user_id');
-    }
+    } 
 }

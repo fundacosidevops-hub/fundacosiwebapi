@@ -56,11 +56,7 @@ class BillingController extends Controller
             ->where('document_number', $document)
             ->first();
 
-        return response()->json([
-            'message' => $user ? 'Usuario encontrado' : 'Usuario no encontrado',
-            'isSuccess' => (bool) $user,
-            'data' => $user ? new UserInfoResource($user) : null,
-        ], 200);
+        return response()->json($user ? new UserInfoResource($user) : null, 200);
 
     }
 
