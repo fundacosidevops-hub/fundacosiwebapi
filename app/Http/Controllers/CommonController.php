@@ -67,9 +67,6 @@ class CommonController
             InsurancesRate::with('medicalStudies')
                 ->where('insurances_id', $request->insurance_id)
                 ->where('is_active', true)
-                ->whereHas('medicalStudies', function ($query) use ($request) {
-                    $query->where('catalog_services_id', $request->service_id);
-                })
                 ->get()
         );
     }
