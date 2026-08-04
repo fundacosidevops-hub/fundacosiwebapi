@@ -126,28 +126,37 @@ class CommonController
     public function getDoctorsByCatalogServices(Request $request)
     {
         return response()->json(
-    MedicalCatalogServices::with('users', 'users.medicalAssistances')
-        ->where('catalog_services_id', $request->service_id)
-        ->whereHas('users.medicalAssistances', function ($q) {
-
-            $q->where('is_active', true)
-              ->whereDate('next_date', now())
-              ->whereRaw("
-                    patient_quantity >
-                    (
-                        SELECT COUNT(*)
-                        FROM in_invoices
-                        WHERE in_invoices.doctor_id = medical_assistances.doctor_id
-                        AND DATE(in_invoices.created_at) = CURDATE()
-                    )
-              ");
-
-        })
-        ->get()
-        ->map(function ($res) {
-            return $res->users;
-        })
-        );
+              MedicalCatalogServices::with([
+                  'users',
+                  'users.medicalAssistances'=> function ($query) {
+                      $query->whereDate('next_date', Carbon::today());
+                  },
+                  'users.queueManagerDoctor' => function ($query) {
+                      $query->whereDate('created_at', Carbon::today());
+                  }
+              ])
+              ->where('catalog_services_id', $request->service_id)
+              ->whereHas('users.medicalAssistances', function ($q) {
+                  $q->where('is_active', true)
+                    ->whereDate('next_date', Carbon::today())
+                    ->whereRaw("
+                          patient_quantity >
+                          (
+                              SELECT COUNT(*)
+                              FROM in_invoices
+                              WHERE in_invoices.doctor_id = medical_assistances.doctor_id
+                              AND DATE(in_invoices.created_at) = CURDATE()
+                          )
+                    ");
+              })
+              ->whereHas('users.queueManagerDoctor', function ($query) {
+                  $query->whereDate('created_at', Carbon::today());
+              })
+              ->get()
+              ->map(function ($res) {
+                  return $res->users;
+              })
+          );
     }
 
     #[OA\Get(
@@ -490,7 +499,7 @@ class CommonController
             ], 500);
         }
     }
- #[OA\Post(
+    #[OA\Post(
         path: '/api/v1/common/update-turn-status',
         summary: 'Cambiar status a ticket',
         tags: ['Common'],
