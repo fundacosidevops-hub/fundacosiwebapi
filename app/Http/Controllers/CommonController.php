@@ -124,39 +124,52 @@ class CommonController
         ]
     )]
     public function getDoctorsByCatalogServices(Request $request)
-    {
+    { 
+
+$now = Carbon::now();
+
         return response()->json(
-              MedicalCatalogServices::with([
-                  'users',
-                  'users.medicalAssistances'=> function ($query) {
-                      $query->whereDate('next_date', Carbon::today());
-                  },
-                  'users.queueManagerDoctor' => function ($query) {
-                      $query->whereDate('created_at', Carbon::today());
-                  }
-              ])
-              ->where('catalog_services_id', $request->service_id)
-              ->whereHas('users.medicalAssistances', function ($q) {
-                  $q->where('is_active', true)
+            MedicalCatalogServices::with([
+                'users',
+                'users.medicalAssistances' => function ($query) use ($now) {
+                    $query->whereDate('next_date', Carbon::today());
+         
+                },
+                'users.queueManagerDoctor' => function ($query) {
+                    $query->whereDate('created_at', Carbon::today());
+                }
+            ])
+            ->where('catalog_services_id', $request->service_id)
+            ->whereHas('users.medicalAssistances', function ($q) use ($now) {
+                $q->where('is_active', true)
                     ->whereDate('next_date', Carbon::today())
                     ->whereRaw("
-                          patient_quantity >
-                          (
-                              SELECT COUNT(*)
-                              FROM in_invoices
-                              WHERE in_invoices.doctor_id = medical_assistances.doctor_id
-                              AND DATE(in_invoices.created_at) = CURDATE()
-                          )
+                        patient_quantity >
+                        (
+                            SELECT COUNT(*)
+                            FROM in_invoices
+                            WHERE in_invoices.doctor_id = medical_assistances.doctor_id
+                            AND DATE(in_invoices.created_at) = CURDATE()
+                        )
                     ");
-              })
-              ->whereHas('users.queueManagerDoctor', function ($query) {
-                  $query->whereDate('created_at', Carbon::today());
-              })
-              ->get()
-              ->map(function ($res) {
-                  return $res->users;
-              })
-          );
+        
+                if ($now->between(
+                    Carbon::today()->setTime(4, 0),
+                    Carbon::today()->setTime(10, 29, 59)
+                )) {
+                    $q->whereBetween('start_time', ['04:00:00', '10:30:00']);
+                } else {
+                    $q->where('start_time', '>=', '10:30:00');
+                }
+            })
+            ->whereHas('users.queueManagerDoctor', function ($query) {
+                $query->whereDate('created_at', Carbon::today());
+            })
+            ->get()
+            ->map(function ($res) {
+                return $res->users;
+            })
+        );
     }
 
     #[OA\Get(
