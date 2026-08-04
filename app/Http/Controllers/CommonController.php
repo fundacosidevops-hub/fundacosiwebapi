@@ -278,7 +278,7 @@ class CommonController
                 required: true,
                 description: 'Id ubicacion usuario.',
                 schema: new OA\Schema(type: 'string'),
-                example: '00107508525'
+                example: '2'
             ),
         ],
         responses: [
@@ -367,7 +367,7 @@ class CommonController
                 required: true,
                 description: 'Ubicacion del kiosko',
                 schema: new OA\Schema(type: 'string'),
-                example: '00107508525'
+                example: '2'
             ),
         ],
         responses: [
@@ -386,7 +386,36 @@ class CommonController
                 ->get(), 200
         );
     }
-
+    #[OA\Get(
+        path: '/api/v1/common/get-all-tickets-location',
+        summary: 'Obtener todos los turnos por ubicacion.',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'locationId',
+                in: 'query',
+                required: true,
+                description: 'Ubicacion del kiosko',
+                schema: new OA\Schema(type: 'string'),
+                example: '2'
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getAllTicketsByLocation(Request $request)
+    { 
+        return response()->json(
+            QueueManager::with('user.position','doctor.position')
+                ->where('location', $request->locationId) 
+                ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
+                ->orderBy('created_at', 'asc')
+                ->get(), 200
+        );
+    }
     #[OA\Get(
         path: '/api/v1/common/get-user-locations',
         summary: 'Obtener todos las ubicaciones.',
@@ -461,7 +490,68 @@ class CommonController
             ], 500);
         }
     }
+ #[OA\Post(
+        path: '/api/v1/common/update-turn-status',
+        summary: 'Cambiar status a ticket',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['ticketId','status'],
+                properties: [
+                    new OA\Property(property: 'ticketId', type: 'integer', example: 1),
+                    new OA\Property(property: 'status', type: 'string', example: 'skip'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Usuario creado correctamente'),
+            new OA\Response(response: 400, description: 'Datos inválidos'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function updateTurnStatus(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'ticketId' => 'required|integer',
+                'status' => 'required|string',
+            ]);
 
+            $data = DB::transaction(function () use ($validated) {
+                if($validated['status'] == 'pending'){
+                     $updated = QueueManager::where('id', $validated['ticketId'])
+                    ->update(['status' => $validated['status'], 'assign_user_id' => null]);
+                }else{
+                    $updated = QueueManager::where('id', $validated['ticketId'])
+                    ->update(['status' => $validated['status']]);
+                }
+                if ($updated === 0) {
+                    throw new \Exception('No se encontró el ticket o no se pudo actualizar.');
+                }
+
+                return $updated;
+            });
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => $data,
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
     #[OA\Get(
         path: '/api/v1/common/get-nationalities',
         summary: 'Obtener todos las nacionalidades.',

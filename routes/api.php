@@ -24,6 +24,7 @@ Route::prefix('v1')->group(function () {
         Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
         Route::post('common/skip-turn', [CommonController::class, 'skipTurn']); 
         Route::post('common/update-assistances-doctor', [CommonController::class, 'updateAssistancesDoctor']);
+        Route::post('common/update-turn-status', [CommonController::class, 'updateTurnStatus']); 
         /* GET */
         Route::get('positions', [AuthController::class, 'positions']);
         Route::get('roles', [AuthController::class, 'roles']);
@@ -35,6 +36,7 @@ Route::prefix('v1')->group(function () {
         Route::get('common/get-user-locations', [CommonController::class, 'getUserLocations']);
         Route::get('common/get-nationalities', [CommonController::class, 'getNationalities']);
         Route::get('common/get-all-doctors', [CommonController::class, 'getAllDoctors']);
+        Route::get('common/get-all-tickets-location', [CommonController::class, 'getAllTicketsByLocation']);
 
     });
 });

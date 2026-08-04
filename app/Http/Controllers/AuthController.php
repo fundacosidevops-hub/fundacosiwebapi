@@ -207,6 +207,8 @@ class AuthController extends Controller
             'policy' => 'nullable|string',
             'documentTypeId' => 'required|integer',
             'birthDate' => 'required|string',
+            'userTypeId' => 'required|integer',
+            'locationId' => 'required|integer',
         ]);
         $data = [
             'document_number' => $validated['documentId'],
@@ -223,7 +225,8 @@ class AuthController extends Controller
             'email' => $validated['email'] ?? $validated['documentId'].'@funsacosixxi.com',
             'phone' => $validated['phone'],
             'policy' => $validated['policy'],
-            'user_type_id' => 2,
+            'user_type_id' => $validated['userTypeId'],
+            'user_locations_id' => $validated['locationId'],
             'is_active' => 1,
         ];
 
@@ -236,7 +239,7 @@ class AuthController extends Controller
         $user = User::updateOrCreate(
             [
                 'document_number' => $validated['documentId'],
-                'user_type_id' => 2,
+                'user_type_id' => $validated['locationId'],
             ],
             $data
         );

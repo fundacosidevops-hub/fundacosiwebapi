@@ -707,7 +707,7 @@
                         "schema": {
                             "type": "string"
                         },
-                        "example": "00107508525"
+                        "example": "2"
                     }
                 ],
                 "responses": {
@@ -741,7 +741,41 @@
                         "schema": {
                             "type": "string"
                         },
-                        "example": "00107508525"
+                        "example": "2"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datos obtenido correctamente"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/get-all-tickets-location": {
+            "get": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Obtener todos los turnos por ubicacion.",
+                "operationId": "5c110de37ce610b4f0e66e502c88d0e8",
+                "parameters": [
+                    {
+                        "name": "locationId",
+                        "in": "query",
+                        "description": "Ubicacion del kiosko",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "2"
                     }
                 ],
                 "responses": {
@@ -800,6 +834,55 @@
                                     "ticketId": {
                                         "type": "integer",
                                         "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Usuario creado correctamente"
+                    },
+                    "400": {
+                        "description": "Datos inválidos"
+                    },
+                    "401": {
+                        "description": "No autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/common/update-turn-status": {
+            "post": {
+                "tags": [
+                    "Common"
+                ],
+                "summary": "Cambiar status a ticket",
+                "operationId": "35710b10456eb900cf8d5d34948ec4c5",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "ticketId",
+                                    "status"
+                                ],
+                                "properties": {
+                                    "ticketId": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "skip"
                                     }
                                 },
                                 "type": "object"
