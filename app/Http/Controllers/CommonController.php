@@ -319,14 +319,14 @@ class CommonController
               // Buscar primero un turno especial
               $q = (clone $baseQuery)
                   ->where('special_turn', true)
-                  ->orderBy('curr_number')
+                  ->orderBy('id')
                   ->lockForUpdate()
                   ->first();
           
               // Si no hay turnos especiales, tomar el más antiguo sin importar si es especial o no
               if (! $q) {
                   $q = (clone $baseQuery)
-                      ->orderBy('curr_number')
+                      ->orderBy('id')
                       ->lockForUpdate()
                       ->first();
               }
@@ -382,7 +382,7 @@ class CommonController
                 ->where('location', $request->locationId)
                 ->whereNotNull('assign_user_id')
                 ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
-                ->orderBy('curr_number')
+                ->orderBy('id')
                 ->get(), 200
         );
     }
@@ -412,7 +412,7 @@ class CommonController
             QueueManager::with('user.position','doctor.position')
                 ->where('location', $request->locationId) 
                 ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
-                ->orderBy('curr_number', 'desc')
+                ->orderBy('id', 'desc')
                 ->get(), 200
         );
     }
