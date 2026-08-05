@@ -126,17 +126,18 @@ class CommonController
     public function getDoctorsByCatalogServices(Request $request)
     { 
 
-$now = Carbon::now();
+        $now = Carbon::now();
 
         return response()->json(
             MedicalCatalogServices::with([
                 'users',
-                'users.medicalAssistances' => function ($query) use ($now) {
+                'users.medicalAssistances' => function ($query) {
                     $query->whereDate('next_date', Carbon::today());
          
                 },
                 'users.queueManagerDoctor' => function ($query) {
-                    $query->whereDate('created_at', Carbon::today());
+                    $query->whereDate('created_at', Carbon::today())
+                    ->where('status', '!=', 'skip');
                 }
             ])
             ->where('catalog_services_id', $request->service_id)
