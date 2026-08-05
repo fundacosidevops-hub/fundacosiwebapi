@@ -136,7 +136,8 @@ class CommonController
          
                 },
                 'users.queueManagerDoctor' => function ($query) {
-                    $query->whereDate('created_at', Carbon::today());
+                    $query->whereDate('created_at', Carbon::today())
+                        ->where('status', '!=', 'skip');
                 }
             ])
             ->where('catalog_services_id', $request->service_id)
@@ -153,17 +154,9 @@ class CommonController
                         )
                     ");
         
-                if ($now->between(
-                    Carbon::today()->setTime(0, 0),
-                    Carbon::today()->setTime(10, 29, 59)
-                )) {
-                    $q->whereBetween('start_time', ['00:00:00', '10:30:00']);
-                } else {
-                    $q->where('start_time', '>=', '10:30:00');
-                }
             })
             ->whereHas('users.queueManagerDoctor', function ($query) {
-                $query->whereDate('created_at', Carbon::today());
+                $query->whereDate('created_at', Carbon::today()) ;
             })
             ->get()
             ->map(function ($res) {
