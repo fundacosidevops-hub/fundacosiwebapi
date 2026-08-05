@@ -155,10 +155,10 @@ class CommonController
                     ");
         
                 if ($now->between(
-                    Carbon::today()->setTime(4, 0),
+                    Carbon::today()->setTime(0, 0),
                     Carbon::today()->setTime(10, 29, 59)
                 )) {
-                    $q->whereBetween('start_time', ['04:00:00', '10:30:00']);
+                    $q->whereBetween('start_time', ['00:00:00', '10:30:00']);
                 } else {
                     $q->where('start_time', '>=', '10:30:00');
                 }
