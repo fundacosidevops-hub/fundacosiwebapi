@@ -136,8 +136,7 @@ class CommonController
          
                 },
                 'users.queueManagerDoctor' => function ($query) {
-                    $query->whereDate('created_at', Carbon::today())
-                        ->where('status', '!=', 'skip');
+                    $query->whereDate('created_at', Carbon::today()) ;
                 }
             ])
             ->where('catalog_services_id', $request->service_id)
