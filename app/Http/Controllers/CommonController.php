@@ -126,24 +126,23 @@ class CommonController
     public function getDoctorsByCatalogServices(Request $request)
     { 
 
-        $now = Carbon::now();
-
+        $now = Carbon::now(); 
         return response()->json(
             MedicalCatalogServices::with([
                 'users',
-                'users.medicalAssistances' => function ($query) {
-                    $query->whereDate('next_date', Carbon::today());
+                'users.medicalAssistances' => function ($query)use ($now) {
+                    $query->whereDate('next_date', $now);
          
                 },
-                'users.queueManagerDoctor' => function ($query) {
-                    $query->whereDate('created_at', Carbon::today())
+                'users.queueManagerDoctor' => function ($query)use ($now) {
+                    $query->whereDate('created_at', $now)
                         ->where('status', '!=', 'skip');
                 }
             ])
             ->where('catalog_services_id', $request->service_id)
             ->whereHas('users.medicalAssistances', function ($q) use ($now) {
                 $q->where('is_active', true)
-                    ->whereDate('next_date', Carbon::today())
+                    ->whereDate('next_date', $now)
                     ->whereRaw("
                         patient_quantity >
                         (
@@ -154,14 +153,7 @@ class CommonController
                         )
                     ");
         
-                if ($now->between(
-                    Carbon::today()->setTime(0, 0),
-                    Carbon::today()->setTime(10, 29, 59)
-                )) {
-                    $q->whereBetween('start_time', ['00:00:00', '10:30:00']);
-                } else {
-                    $q->where('start_time', '>=', '10:30:00');
-                }
+              
             })
             
             ->get()
