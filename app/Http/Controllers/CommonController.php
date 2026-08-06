@@ -339,14 +339,14 @@ class CommonController
             // Buscar primero un turno especial
             $q = (clone $baseQuery)
                 ->where('special_turn', true)
-                ->orderBy('id','desc')
+                ->orderBy('id')
                 ->lockForUpdate()
                 ->first();
 
             // Si no hay turnos especiales, tomar el más antiguo sin importar si es especial o no
             if (! $q) {
                 $q = (clone $baseQuery)
-                    ->orderBy('id','desc')
+                    ->orderBy('id')
                     ->lockForUpdate()
                     ->first();
             }
