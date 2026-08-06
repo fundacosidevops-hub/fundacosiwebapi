@@ -991,10 +991,22 @@
         "/api/v1/common/get-all-doctors": {
             "get": {
                 "tags": [
-                    "Auth"
+                    "Common"
                 ],
                 "summary": "Obtener todos los usuarios",
                 "operationId": "4cd4da1fc96baac4506d1e103a4806aa",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "description": "Fecha para filtrar los doctores",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "2023-10-01"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Datos obtenido correctamente"

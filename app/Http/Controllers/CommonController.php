@@ -92,11 +92,11 @@ class CommonController
                         'id' => $service->id,
                         'description' => $service->description,
                         'doctors' => $service->medicalCatalogServices
-                            ->filter(fn ($item) => $item->users)
+                            ->filter(fn($item) => $item->users)
                             ->map(function ($item) {
                                 return [
                                     'id' => $item->users->id,
-                                    'name' => $item->users->name.' '.$item->users->last_name,
+                                    'name' => $item->users->name . ' ' . $item->users->last_name,
                                 ];
                             })->values(),
                     ];
@@ -124,26 +124,25 @@ class CommonController
         ]
     )]
     public function getDoctorsByCatalogServices(Request $request)
-    { 
+    {
 
-        $now = Carbon::now(); 
+        $now = Carbon::now();
         return response()->json(
             MedicalCatalogServices::with([
                 'users',
-                'users.medicalAssistances' => function ($query)use ($now) {
+                'users.medicalAssistances' => function ($query) use ($now) {
                     $query->whereDate('next_date', $now);
-         
                 },
-                'users.queueManagerDoctor' => function ($query)use ($now) {
+                'users.queueManagerDoctor' => function ($query) use ($now) {
                     $query->whereDate('created_at', $now)
                         ->where('status', '!=', 'skip');
                 }
             ])
-            ->where('catalog_services_id', $request->service_id)
-            ->whereHas('users.medicalAssistances', function ($q) use ($now) {
-                $q->where('is_active', true)
-                    ->whereDate('next_date', $now)
-                    ->whereRaw("
+                ->where('catalog_services_id', $request->service_id)
+                ->whereHas('users.medicalAssistances', function ($q) use ($now) {
+                    $q->where('is_active', true)
+                        ->whereDate('next_date', $now)
+                        ->whereRaw("
                         patient_quantity >
                         (
                             SELECT COUNT(*)
@@ -152,21 +151,21 @@ class CommonController
                             AND DATE(in_invoices.created_at) = CURDATE()
                         )
                     ");
-        
-                if ($now->between(
-                    $now->copy()->setTime(0, 0),
-                    $now->copy()->setTime(10, 29, 59)
-                )) {
-                    $q->whereBetween('start_time', ['00:00:00', '10:30:00']);
-                } else {
-                    $q->where('start_time', '>=', '10:30:00');
-                }
-            })
-            
-            ->get()
-            ->map(function ($res) {
-                return $res->users;
-            })
+
+                    if ($now->between(
+                        $now->copy()->setTime(0, 0),
+                        $now->copy()->setTime(10, 29, 59)
+                    )) {
+                        $q->whereBetween('start_time', ['00:00:00', '10:30:00']);
+                    } else {
+                        $q->where('start_time', '>=', '10:30:00');
+                    }
+                })
+
+                ->get()
+                ->map(function ($res) {
+                    return $res->users;
+                })
         );
     }
 
@@ -221,7 +220,7 @@ class CommonController
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['code', 'documentId','locationId', 'insuranceId', 'catalogServiceId', 'doctorId', 'billingType'],
+                required: ['code', 'documentId', 'locationId', 'insuranceId', 'catalogServiceId', 'doctorId', 'billingType'],
                 properties: [
                     new OA\Property(property: 'code', type: 'string', example: 'AA1'),
                     new OA\Property(property: 'documentId', type: 'string', example: '00118479953'),
@@ -261,9 +260,9 @@ class CommonController
 
             $nextNumber = $lastNumber ? $lastNumber + 1 : 1;
 
-            $ticket = $validated['code'].'-'.str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            $ticket = $validated['code'] . '-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
 
-             QueueManager::create([
+            QueueManager::create([
                 'queue_code' => $validated['code'],
                 'curr_number' => $nextNumber,
                 'ticket' => $ticket,
@@ -317,7 +316,8 @@ class CommonController
             ->where('location', $validated['userLocationsId'])
             ->whereBetween('created_at', [
                 Carbon::today()->startOfDay(),
-                Carbon::today()->endOfDay(), ])
+                Carbon::today()->endOfDay(),
+            ])
             ->where('status', 'called')
             ->lockForUpdate()
             ->first();
@@ -329,39 +329,39 @@ class CommonController
         // Buscar nuevo turno
         $q = DB::transaction(function () use ($validated) {
 
-              $baseQuery = QueueManager::whereBetween('created_at', [
-                      Carbon::today()->startOfDay(),
-                      Carbon::today()->endOfDay(),
-                  ])
-                  ->where('status', 'pending')
-                  ->where('location', $validated['userLocationsId']);
-          
-              // Buscar primero un turno especial
-              $q = (clone $baseQuery)
-                  ->where('special_turn', true)
-                  ->orderBy('id')
-                  ->lockForUpdate()
-                  ->first();
-          
-              // Si no hay turnos especiales, tomar el más antiguo sin importar si es especial o no
-              if (! $q) {
-                  $q = (clone $baseQuery)
-                      ->orderBy('id')
-                      ->lockForUpdate()
-                      ->first();
-              }
-          
-              if (! $q) {
-                  return null;
-              }
-          
-              $q->update([
-                  'assign_user_id' => auth()->id(),
-                  'status' => 'called',
-              ]);
-          
-              return $q->load('user.position');
-          });
+            $baseQuery = QueueManager::whereBetween('created_at', [
+                Carbon::today()->startOfDay(),
+                Carbon::today()->endOfDay(),
+            ])
+                ->where('status', 'pending')
+                ->where('location', $validated['userLocationsId']);
+
+            // Buscar primero un turno especial
+            $q = (clone $baseQuery)
+                ->where('special_turn', true)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            // Si no hay turnos especiales, tomar el más antiguo sin importar si es especial o no
+            if (! $q) {
+                $q = (clone $baseQuery)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            if (! $q) {
+                return null;
+            }
+
+            $q->update([
+                'assign_user_id' => auth()->id(),
+                'status' => 'called',
+            ]);
+
+            return $q->load('user.position');
+        });
 
         if (! $q) {
             return response()->json([
@@ -372,7 +372,10 @@ class CommonController
         }
 
         return response()->json([
-            'isSuccess' => true, 'message' => '', 'data' => $q], 200);
+            'isSuccess' => true,
+            'message' => '',
+            'data' => $q
+        ], 200);
     }
 
     #[OA\Get(
@@ -403,7 +406,8 @@ class CommonController
                 ->whereNotNull('assign_user_id')
                 ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
                 ->orderBy('id')
-                ->get(), 200
+                ->get(),
+            200
         );
     }
     #[OA\Get(
@@ -427,13 +431,14 @@ class CommonController
         ]
     )]
     public function getAllTicketsByLocation(Request $request)
-    { 
+    {
         return response()->json(
-            QueueManager::with('user.position','doctor.position')
-                ->where('location', $request->locationId) 
+            QueueManager::with('user.position', 'doctor.position')
+                ->where('location', $request->locationId)
                 ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
                 ->orderBy('id', 'desc')
-                ->get(), 200
+                ->get(),
+            200
         );
     }
     #[OA\Get(
@@ -449,7 +454,8 @@ class CommonController
     public function getUserLocations()
     {
         return response()->json(
-            UserLocations::all(), 200
+            UserLocations::all(),
+            200
         );
     }
 
@@ -496,13 +502,11 @@ class CommonController
                 'isSuccess' => true,
                 'message' => $data,
             ], 200);
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'isSuccess' => false,
                 'message' => $e->errors(),
             ], 422);
-
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
@@ -518,7 +522,7 @@ class CommonController
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['ticketId','status'],
+                required: ['ticketId', 'status'],
                 properties: [
                     new OA\Property(property: 'ticketId', type: 'integer', example: 1),
                     new OA\Property(property: 'status', type: 'string', example: 'skip'),
@@ -540,12 +544,12 @@ class CommonController
             ]);
 
             $data = DB::transaction(function () use ($validated) {
-                if($validated['status'] == 'pending'){
-                     $updated = QueueManager::where('id', $validated['ticketId'])
-                    ->update(['status' => $validated['status'], 'assign_user_id' => null]);
-                }else{
+                if ($validated['status'] == 'pending') {
                     $updated = QueueManager::where('id', $validated['ticketId'])
-                    ->update(['status' => $validated['status']]);
+                        ->update(['status' => $validated['status'], 'assign_user_id' => null]);
+                } else {
+                    $updated = QueueManager::where('id', $validated['ticketId'])
+                        ->update(['status' => $validated['status']]);
                 }
                 if ($updated === 0) {
                     throw new \Exception('No se encontró el ticket o no se pudo actualizar.');
@@ -558,13 +562,11 @@ class CommonController
                 'isSuccess' => true,
                 'message' => $data,
             ], 200);
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'isSuccess' => false,
                 'message' => $e->errors(),
             ], 422);
-
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
@@ -585,11 +587,12 @@ class CommonController
     public function getNationalities()
     {
         return response()->json(
-            Nationalities::all(), 200
+            Nationalities::all(),
+            200
         );
     }
 
-        #[OA\Post(
+    #[OA\Post(
         path: '/api/v1/common/update-assistances-doctor',
         summary: 'Guardar asistencia del doctor',
         tags: ['Common'],
@@ -611,95 +614,108 @@ class CommonController
             new OA\Response(response: 400, description: 'Datos inválidos'),
             new OA\Response(response: 401, description: 'No autorizado'),
         ]
-    )] 
+    )]
 
     public function updateAssistancesDoctor(Request $request)
     {
-    $validated = $request->validate([
-        'doctorId' => 'required|integer',
-        'startTime' => 'nullable',
-        'patientQuantity' => 'nullable|integer',
-        'isActive' => 'boolean',
-    ]);
+        $validated = $request->validate([
+            'doctorId' => 'required|integer',
+            'startTime' => 'nullable',
+            'patientQuantity' => 'nullable|integer',
+            'isActive' => 'boolean',
+            'date' => 'required|date',
+        ]);
 
-    DB::beginTransaction();
+        DB::beginTransaction();
 
-    try {
+        try {
 
-        $nextDate = Carbon::now()->addDay()->toDateString();
+            $nextDate = Carbon::parse($validated['date'])
+                ->addDay()
+                ->toDateString();
 
-        // Buscar si ya existe un registro del doctor creado hoy
-        $medicalAssistance = MedicalAssistance::where('doctor_id', $validated['doctorId'])
-            ->whereDate('created_at', Carbon::today())
-            ->first();
+            // Buscar si ya existe un registro del doctor creado hoy
+            $medicalAssistance = MedicalAssistance::where('doctor_id', $validated['doctorId'])
+                ->whereDate('created_at', $validated['date'])
+                ->first();
 
-        if ($medicalAssistance) {
+            if ($medicalAssistance) {
 
-            // Actualizar
-            $medicalAssistance->update([
-                'start_time' => $request->input('startTime'),
-                'patient_quantity' => $request->input('patientQuantity'),
-                'is_active' => $request->input('isActive'),
-                'next_date' => $nextDate,
-            ]);
+                // Actualizar
+                $medicalAssistance->update([
+                    'start_time' => $request->input('startTime'),
+                    'patient_quantity' => $request->input('patientQuantity'),
+                    'is_active' => $request->input('isActive') 
+                ]);
+            } else {
 
-        } else {
+                // Insertar
+                MedicalAssistance::create([
+                    'doctor_id' => $validated['doctorId'],
+                    'start_time' => $request->input('startTime'),
+                    'end_time' => null,
+                    'patient_quantity' => $request->input('patientQuantity'),
+                    'is_active' => $request->input('isActive'),
+                    'next_date' => $nextDate,
+                    'created_at' => $validated['date'] 
+                ]);
+            }
 
-            // Insertar
-            MedicalAssistance::create([
-                'doctor_id' => $validated['doctorId'],
-                'start_time' => $request->input('startTime'),
-                'end_time' => null,
-                'patient_quantity' => $request->input('patientQuantity'),
-                'is_active' => $request->input('isActive'),
-                'next_date' => $nextDate,
-            ]);
+            DB::commit();
 
+            return response()->json([
+                'message' => 'Asistencia guardada correctamente'
+            ], 200);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Error al guardar la asistencia',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        DB::commit();
-
-        return response()->json([
-            'message' => 'Asistencia guardada correctamente'
-        ], 200);
-
-    } catch (\Exception $e) {
-
-        DB::rollBack();
-
-        return response()->json([
-            'message' => 'Error al guardar la asistencia',
-            'error' => $e->getMessage(),
-        ], 500);
-    }
     }
 
     #[OA\Get(
         path: '/api/v1/common/get-all-doctors',
         summary: 'Obtener todos los usuarios',
-        tags: ['Auth'],
+        tags: ['Common'],
         security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'date',
+                in: 'query',
+                required: true,
+                description: 'Fecha para filtrar los doctores',
+                schema: new OA\Schema(type: 'string'),
+                example: '2023-10-01'
+            ),
+        ],
         responses: [
             new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
             new OA\Response(response: 401, description: 'No autorizado'),
         ]
     )]
-    public function getAllDoctors()
+    public function getAllDoctors(Request $request)
     {
-          $users = User::with([
+        $validated = $request->validate([
+            'date' => 'required|string',
+        ]);
+        $users = User::with([
             'position',
-            'medicalAssistances' => function ($query) {
-                $query->whereDate('created_at', Carbon::today());
-            },   
-            'billingPatients' => function ($query) {
-                $query->whereDate('created_at', Carbon::today())
-                ->where('status_id', 3);
+            'medicalAssistances' => function ($query) use ($validated) {
+                $query->whereDate('created_at', $validated['date']);
+            },
+            'billingPatients' => function ($query) use ($validated) {
+                $query->whereDate('created_at', $validated['date'])
+                    ->where('status_id', 3);
             },
             'billingPatients.patient',
             'billingPatients.doctor.position',
-            'billingPatients.patient.queueManager' => function ($query) {
-                $query->whereDate('created_at', Carbon::today())
-                ->where('status', 'done');
+            'billingPatients.patient.queueManager' => function ($query) use ($validated) {
+                $query->whereDate('created_at', $validated['date'])
+                    ->where('status', 'done');
             },
             'nationalities',
             'maritalStatus',
@@ -707,10 +723,10 @@ class CommonController
             'insurance',
             'userLocations',
             'userType',
-            'roles' 
+            'roles'
         ])
-        ->where('user_type_id', 3) ->get();
+            ->where('user_type_id', 3)->get();
 
-       return UserListResource::collection($users);
-    } 
+        return UserListResource::collection($users);
+    }
 }

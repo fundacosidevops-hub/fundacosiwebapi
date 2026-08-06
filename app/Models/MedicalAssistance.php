@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model; 
+use Illuminate\Database\Eloquent\Model;
 
 class MedicalAssistance extends Model
 {
@@ -13,6 +13,7 @@ class MedicalAssistance extends Model
         'patient_quantity',
         'is_active',
         'next_date',
+        'created_at',
     ];
 
     public function doctor()
