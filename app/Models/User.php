@@ -31,6 +31,7 @@ class User extends Authenticatable implements JWTSubject
         'phone',
         'user_type_id',
         'is_active',
+        'user_locations_id',
     ];
 
     protected $casts = [

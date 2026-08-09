@@ -184,7 +184,7 @@ class AuthController extends Controller
 
     #[OA\Post(
         path: '/api/v1/save-patient',
-        summary: 'Crear nuevo paciente.',
+        summary: 'Crear nuevo usuario.',
         tags: ['Auth'],
         security: [['bearerAuth' => []]],
         responses: [
@@ -209,6 +209,8 @@ class AuthController extends Controller
             'birthDate' => 'required|string',
             'userTypeId' => 'required|integer',
             'locationId' => 'required|integer',
+            'positionId' => 'required|integer',
+            'roleId' => 'required|string',
         ]);
         $data = [
             'document_number' => $validated['documentId'],
@@ -218,11 +220,11 @@ class AuthController extends Controller
             'gender' => $validated['gender'],
             'marital_status_id' => $validated['civilStatusId'],
             'birth_date' => $validated['birthDate'],
-            'position_id' => 6,
+            'position_id' => $validated['positionId'],
             'document_type_id' => $validated['documentTypeId'],
             'nationalities_id' => $validated['nationalitieId'],
             'insurance_id' => $validated['insuranceId'],
-            'email' => $validated['email'] ?? $validated['documentId'].'@funsacosixxi.com',
+            'email' => $validated['email'] ?? $validated['documentId'] . '@funsacosixxi.com',
             'phone' => $validated['phone'],
             'policy' => $validated['policy'],
             'user_type_id' => $validated['userTypeId'],
@@ -230,16 +232,19 @@ class AuthController extends Controller
             'is_active' => 1,
         ];
 
-        $user = User::where('document_number', $validated['documentId'])->first();
-
+        $user = User::where('document_number', $validated['documentId'])
+            ->where('user_type_id', $validated['userTypeId'])
+            ->first();
+            
         if (! $user) {
             $data['password'] = Hash::make('TempPass123');
         }
 
+        $user->syncRoles([$validated['roleId']]);
         $user = User::updateOrCreate(
             [
                 'document_number' => $validated['documentId'],
-                'user_type_id' => $validated['locationId'],
+                'user_type_id' => $validated['userTypeId']
             ],
             $data
         );
@@ -265,6 +270,4 @@ class AuthController extends Controller
             'message' => 'Sesión cerrada correctamente',
         ]);
     }
-   
-   
 }
