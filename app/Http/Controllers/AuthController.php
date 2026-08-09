@@ -235,12 +235,10 @@ class AuthController extends Controller
         $user = User::where('document_number', $validated['documentId'])
             ->where('user_type_id', $validated['userTypeId'])
             ->first();
-            
+
         if (! $user) {
             $data['password'] = Hash::make('TempPass123');
         }
-
-        $user->syncRoles([$validated['roleId']]);
         $user = User::updateOrCreate(
             [
                 'document_number' => $validated['documentId'],
@@ -249,6 +247,8 @@ class AuthController extends Controller
             $data
         );
 
+
+        $user->syncRoles([$validated['roleId']]);
         return response()->json($user, 200);
     }
 
