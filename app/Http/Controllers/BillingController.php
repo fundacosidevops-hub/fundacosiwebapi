@@ -52,6 +52,7 @@ class BillingController extends Controller
             'insurance',
             'userType',
             'roles',
+            'medicalCatalogServicesByUser'
         ])
             ->where('document_number', $document)
             ->first();
