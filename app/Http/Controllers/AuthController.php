@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\UserInfoResource;
+use App\Models\MedicalCatalogServices;
 use App\Models\Positions;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -211,6 +212,7 @@ class AuthController extends Controller
             'locationId' => 'required|integer',
             'positionId' => 'required|integer',
             'roleId' => 'required|string',
+            'serviceId' => 'nullable|integer|required_if:userTypeId,3',
         ]);
         $data = [
             'document_number' => $validated['documentId'],
@@ -249,6 +251,13 @@ class AuthController extends Controller
 
 
         $user->syncRoles([$validated['roleId']]);
+
+        if ((int) $validated['userTypeId'] === 3) {
+            MedicalCatalogServices::updateOrCreate(
+                ['users_id' => $user->id],
+                ['catalog_services_id' => $validated['serviceId']]
+            );
+        }
         return response()->json($user, 200);
     }
 

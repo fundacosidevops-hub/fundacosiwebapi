@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('avatar')->nullable();
             $table->string('name', 50);
             $table->string('last_name', 50);
-            $table->string('email', 100)->unique();
+            $table->string('email', 100);
             $table->foreignId('position_id')->nullable()->constrained('positions');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
