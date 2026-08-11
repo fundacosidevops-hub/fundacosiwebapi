@@ -34,6 +34,14 @@ class BillingController extends Controller
                 schema: new OA\Schema(type: 'string'),
                 example: '00107508525'
             ),
+            new OA\Parameter(
+                name: 'userTypeId',
+                in: 'query',
+                required: true,
+                description: 'Tipo de usuario (1: Empleado 2: Paciente, 3: Doctor )',
+                schema: new OA\Schema(type: 'integer'),
+                example: '1'
+            ),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
@@ -43,7 +51,7 @@ class BillingController extends Controller
     public function getUserBillingInfo(Request $request)
     {
         $document = str_replace(' ', '', $request->document);
-
+        $userTypeId = $request->userTypeId;
         $user = User::with([
             'position',
             'nationalities',
@@ -55,6 +63,7 @@ class BillingController extends Controller
             'medicalCatalogServicesByUser'
         ])
             ->where('document_number', $document)
+            ->where('user_type_id', $userTypeId)
             ->first();
 
         return response()->json($user ? new UserInfoResource($user) : null, 200);

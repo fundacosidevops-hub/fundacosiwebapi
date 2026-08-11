@@ -190,7 +190,7 @@
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Crear nuevo paciente.",
+                "summary": "Crear nuevo usuario.",
                 "operationId": "406fb28262e6b8e4b05d1191cc0ed22c",
                 "responses": {
                     "200": {
@@ -246,6 +246,16 @@
                             "type": "string"
                         },
                         "example": "00107508525"
+                    },
+                    {
+                        "name": "userTypeId",
+                        "in": "query",
+                        "description": "Tipo de usuario (1: Empleado 2: Paciente, 3: Doctor )",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": "1"
                     }
                 ],
                 "responses": {
