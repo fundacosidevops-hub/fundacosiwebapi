@@ -42,6 +42,14 @@ class BillingController extends Controller
                 schema: new OA\Schema(type: 'integer'),
                 example: '1'
             ),
+            new OA\Parameter(
+                name: 'searchType',
+                in: 'query',
+                required: true,
+                description: 'Tipo de busqueda (1: Cedula, 2: No. registro)',
+                schema: new OA\Schema(type: 'integer'),
+                example: '1'
+            ),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
@@ -52,6 +60,8 @@ class BillingController extends Controller
     {
         $document = str_replace(' ', '', $request->document);
         $userTypeId = $request->userTypeId;
+        $searchType = $request->searchType;
+
         $user = User::with([
             'position',
             'nationalities',
@@ -61,13 +71,16 @@ class BillingController extends Controller
             'userType',
             'roles',
             'medicalCatalogServicesByUser'
-        ])
-            ->where('document_number', $document)
-            ->where('user_type_id', $userTypeId)
-            ->first();
+        ])->where('user_type_id', $userTypeId);
 
+        if ($searchType == 1) {
+            $user = $user->where('document_number', $document);
+        } elseif ($searchType == 2) {
+            $user = $user->where('id', $document);
+        }
+
+        $user = $user->first();
         return response()->json($user ? new UserInfoResource($user) : null, 200);
-
     }
 
     public function generateNextInvoice(string $lastInvoice): string
@@ -77,7 +90,7 @@ class BillingController extends Controller
 
         $nextNumber = (int) $number + 1;
 
-        return $prefix.str_pad($nextNumber, strlen($number), '0', STR_PAD_LEFT);
+        return $prefix . str_pad($nextNumber, strlen($number), '0', STR_PAD_LEFT);
     }
 
     #[OA\Post(
@@ -207,7 +220,6 @@ class BillingController extends Controller
             ]);
 
             return response()->json($invoice, 200);
-
         } catch (\Exception $e) {
 
             DB::rollBack();
@@ -257,7 +269,7 @@ class BillingController extends Controller
                 'invoices_id' => $validated['invoiceId'],
                 'payment_method_id' => $validated['paymentMethodId'],
                 'amount' => $validated['total'],
-                'reference' => 'Pago a factura No.'.$validated['invoiceId'],
+                'reference' => 'Pago a factura No.' . $validated['invoiceId'],
                 'paid_at' => NOW(),
             ]);
 
@@ -271,7 +283,6 @@ class BillingController extends Controller
                 'message' => 'Pago creado correctamente',
                 'data' => $invoice,
             ], 200);
-
         } catch (\Exception $e) {
 
             DB::rollBack();

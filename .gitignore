@@ -88,3 +88,4 @@ docker-compose.override.yml
 *.pem
 *.crt
 *.key
+storage/api-docs/api-docs.json
