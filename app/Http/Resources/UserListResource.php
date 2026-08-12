@@ -33,6 +33,7 @@ class UserListResource extends JsonResource
             'billingPatients' => $this->billingPatients,
             'document_types' => $this->documentType,
             'document_number' => $this->document_number,
+            'relationShipDependent' => $this->relationship_type_id,
             'user_type' => $this->userType,
             'is_active' => $this->is_active,
             'roles' => $this->roles, 

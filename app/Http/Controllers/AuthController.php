@@ -196,6 +196,7 @@ class AuthController extends Controller
     public function savePatient(Request $request)
     {
         $validated = $request->validate([
+            'id' => 'required|integer',
             'documentId' => 'required|string|max:50',
             'name' => 'required|string',
             'lastName' => 'required|string',
@@ -234,7 +235,7 @@ class AuthController extends Controller
             'is_active' => 1,
         ];
 
-        $user = User::where('document_number', $validated['documentId'])
+        $user = User::where('id', $validated['id'])
             ->where('user_type_id', $validated['userTypeId'])
             ->first();
 
@@ -243,7 +244,7 @@ class AuthController extends Controller
         }
         $user = User::updateOrCreate(
             [
-                'document_number' => $validated['documentId'],
+                'id' => $validated['id'],
                 'user_type_id' => $validated['userTypeId']
             ],
             $data

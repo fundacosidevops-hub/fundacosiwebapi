@@ -32,6 +32,8 @@ class User extends Authenticatable implements JWTSubject
         'user_type_id',
         'is_active',
         'user_locations_id',
+        'dependent_of',
+        'relationship_type_id',
     ];
 
     protected $casts = [
@@ -80,6 +82,14 @@ class User extends Authenticatable implements JWTSubject
     public function catalogServices()
     {
         return $this->belongsTo(CatalogServices::class);
+    }
+    public function relationShipDependent()
+    {
+        return $this->hasMany(User::class,'dependent_of', 'id');
+    }
+    public function relationShipType()
+    {
+        return $this->hasOne(RelationshipTypes::class,'id','relationship_type_id');
     }
     public function medicalAssistances()
     {

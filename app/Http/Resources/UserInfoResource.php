@@ -32,6 +32,7 @@ class UserInfoResource extends JsonResource
             'document_types' => $this->documentType,
             'document_number' => $this->document_number,
             'medicalCatalogServices' => $this->medicalCatalogServicesByUser,
+            'relationShipDependent' => $this->relationShipDependent,
             'user_type' => $this->userType,
             'is_active' => $this->is_active,
             'roles' => $this->roles->pluck('name')->first(),

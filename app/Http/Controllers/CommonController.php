@@ -6,6 +6,7 @@ use App\Http\Resources\UserInfoResource;
 use App\Http\Resources\UserListResource;
 use App\Models\CatalogServices;
 use App\Models\Insurances;
+use App\Models\RelationshipTypes;
 use App\Models\InsurancesRate;
 use App\Models\MedicalCatalogServices;
 use App\Models\MedicalAssistance;
@@ -210,8 +211,7 @@ class CommonController
         }
 
         return new UserInfoResource($user);
-    }
-
+    } 
     #[OA\Post(
         path: '/api/v1/save-ticket',
         summary: 'Guardar ticket',
@@ -457,8 +457,7 @@ class CommonController
             UserLocations::all(),
             200
         );
-    }
-
+    } 
     #[OA\Post(
         path: '/api/v1/skip-turn',
         summary: 'Saltar ticket',
@@ -645,7 +644,7 @@ class CommonController
                 $medicalAssistance->update([
                     'start_time' => $request->input('startTime'),
                     'patient_quantity' => $request->input('patientQuantity'),
-                    'is_active' => $request->input('isActive') 
+                    'is_active' => $request->input('isActive')
                 ]);
             } else {
 
@@ -657,7 +656,7 @@ class CommonController
                     'patient_quantity' => $request->input('patientQuantity'),
                     'is_active' => $request->input('isActive'),
                     'next_date' => $nextDate,
-                    'created_at' => $validated['date'] 
+                    'created_at' => $validated['date']
                 ]);
             }
 
@@ -728,5 +727,53 @@ class CommonController
             ->where('user_type_id', 3)->get();
 
         return UserListResource::collection($users);
+    }
+    #[OA\Get(
+        path: '/api/v1/common/get-relationship-types',
+        summary: 'Obtener todos los tipos de relación',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getRelationshipTypes()
+    {
+        return response()->json(RelationshipTypes::all());
+    }
+    public function updateRelationships(Request $request)
+    {
+        $validated = $request->validate([
+            'holderId' => 'required|integer',
+            'dependentId' => 'required|integer',
+            'relationshipTypeId' => 'required|integer'
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            User::where('id', $validated['dependentId'])
+                ->update([
+                    'dependent_of' => $validated['holderId'],
+                    'relationship_type_id' => $validated['relationshipTypeId']
+                ]);
+            $dependents = User::where(
+                'dependent_of',
+                $validated['holderId']
+            )->get();
+
+            DB::commit();
+
+            return response()->json(UserListResource::collection($dependents), 200);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Error al guardar la asistencia',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

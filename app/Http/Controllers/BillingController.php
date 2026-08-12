@@ -70,7 +70,9 @@ class BillingController extends Controller
             'insurance',
             'userType',
             'roles',
-            'medicalCatalogServicesByUser'
+            'medicalCatalogServicesByUser',
+            'relationShipDependent',
+            'relationShipDependent.relationShipType'
         ])->where('user_type_id', $userTypeId);
 
         if ($searchType == 1) {
@@ -141,6 +143,7 @@ class BillingController extends Controller
     public function save(Request $request)
     {
         $validated = $request->validate([
+            'id' => 'required|integer',
             'patientId' => 'required|string',
             'doctorId' => 'required|integer',
             'insuranceId' => 'nullable|integer',
@@ -166,7 +169,7 @@ class BillingController extends Controller
         try {
 
             // buscaa el paciente por documento
-            $patient = User::where('document_number', $validated['patientId'])->first();
+            $patient = User::where('id', $validated['id'])->first();
 
             if (! $patient) {
                 return response()->json([

@@ -22,9 +22,10 @@ Route::prefix('v1')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('billing/save-bill', [BillingController::class, 'save']);
         Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
-        Route::post('common/skip-turn', [CommonController::class, 'skipTurn']); 
+        Route::post('common/skip-turn', [CommonController::class, 'skipTurn']);
         Route::post('common/update-assistances-doctor', [CommonController::class, 'updateAssistancesDoctor']);
-        Route::post('common/update-turn-status', [CommonController::class, 'updateTurnStatus']); 
+        Route::post('common/update-turn-status', [CommonController::class, 'updateTurnStatus']);
+        Route::post('common/update-relationships', [CommonController::class, 'updateRelationships']);
         /* GET */
         Route::get('positions', [AuthController::class, 'positions']);
         Route::get('roles', [AuthController::class, 'roles']);
@@ -37,6 +38,6 @@ Route::prefix('v1')->group(function () {
         Route::get('common/get-nationalities', [CommonController::class, 'getNationalities']);
         Route::get('common/get-all-doctors', [CommonController::class, 'getAllDoctors']);
         Route::get('common/get-all-tickets-location', [CommonController::class, 'getAllTicketsByLocation']);
-
+        Route::get('common/get-relationship-types', [CommonController::class, 'getRelationshipTypes']);
     });
 });
