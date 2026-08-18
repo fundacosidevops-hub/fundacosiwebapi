@@ -211,7 +211,7 @@ class CommonController
         }
 
         return new UserInfoResource($user);
-    } 
+    }
     #[OA\Post(
         path: '/api/v1/save-ticket',
         summary: 'Guardar ticket',
@@ -457,7 +457,7 @@ class CommonController
             UserLocations::all(),
             200
         );
-    } 
+    }
     #[OA\Post(
         path: '/api/v1/skip-turn',
         summary: 'Saltar ticket',
@@ -573,6 +573,62 @@ class CommonController
             ], 500);
         }
     }
+    #[OA\Post(
+        path: '/api/v1/common/update-turn-cashier',
+        summary: 'Cambiar cajero a ticket',
+        tags: ['Common'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['ticketId', 'cashierId'],
+                properties: [
+                    new OA\Property(property: 'ticketId', type: 'integer', example: 1),
+                    new OA\Property(property: 'cashierId', type: 'integer', example: 'skip'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Usuario creado correctamente'),
+            new OA\Response(response: 400, description: 'Datos inválidos'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function updateTurnCashier(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'ticketId' => 'required|integer',
+                'cashierId' => 'required|integer',
+            ]);
+
+            $data = DB::transaction(function () use ($validated) {
+                $updated = QueueManager::where('id', $validated['ticketId'])
+                    ->update(['assign_user_id' => $validated['cashierId']]);
+
+                if ($updated === 0) {
+                    throw new \Exception('No se encontró el ticket o no se pudo actualizar.');
+                }
+
+                return $updated;
+            });
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => $data,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
     #[OA\Get(
         path: '/api/v1/common/get-nationalities',
         summary: 'Obtener todos las nacionalidades.',
@@ -614,7 +670,6 @@ class CommonController
             new OA\Response(response: 401, description: 'No autorizado'),
         ]
     )]
-
     public function updateAssistancesDoctor(Request $request)
     {
         $validated = $request->validate([

@@ -313,4 +313,22 @@ class BillingController extends Controller
             PaymentMethods::where('is_active', true)->get()
         );
     }
+    #[OA\Get(
+        path: '/api/v1/billing/get-all-cashier-list',
+        summary: 'Obtener todos los cajeros',
+        tags: ['Billing'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getAllCashierList()
+    {
+        return response()->json(
+            User::where('is_active', true)
+                ->where('email', 'LIKE', 'facturacion%')
+                ->get()
+        );
+    }
 }
