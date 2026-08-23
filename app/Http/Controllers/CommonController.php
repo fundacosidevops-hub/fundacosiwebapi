@@ -35,7 +35,6 @@ class CommonController
     {
         return response()->json(Insurances::all());
     }
-
     #[OA\Get(
         path: '/api/v1/common/medical-studies',
         summary: 'Obtener todos los estudios.',
@@ -71,7 +70,6 @@ class CommonController
                 ->get()
         );
     }
-
     #[OA\Get(
         path: '/api/v1/common/catalog-services',
         summary: 'Obtener todos los catalogos de servicios.',
@@ -104,7 +102,6 @@ class CommonController
                 })
         );
     }
-
     #[OA\Get(
         path: '/api/v1/common/catalog-services-doctor',
         summary: 'Obtener todos los doctores por ID del servicio.',
@@ -169,7 +166,6 @@ class CommonController
                 })
         );
     }
-
     #[OA\Get(
         path: '/api/v1/common/patient-info',
         summary: 'Obtener datos del paciente',
@@ -284,7 +280,6 @@ class CommonController
 
         return response()->json($data, 200);
     }
-
     #[OA\Get(
         path: '/api/v1/common/call-next-queue',
         summary: 'Llamar siguiente turno.',
@@ -377,7 +372,6 @@ class CommonController
             'data' => $q
         ], 200);
     }
-
     #[OA\Get(
         path: '/api/v1/common/get-ticket-location',
         summary: 'Obtener todos los turnos por ubicacion.',
@@ -730,7 +724,6 @@ class CommonController
             ], 500);
         }
     }
-
     #[OA\Get(
         path: '/api/v1/common/get-all-doctors',
         summary: 'Obtener todos los usuarios',

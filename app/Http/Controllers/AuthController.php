@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\UserInfoResource;
+use App\Http\Resources\UserListResource;
 use App\Models\MedicalCatalogServices;
 use App\Models\Positions;
 use App\Models\User;
@@ -52,7 +53,6 @@ class AuthController extends Controller
             'expires_in' => JWTAuth::factory()->getTTL() * 60,
         ]);
     }
-
     #[OA\Post(
         path: '/api/v1/saveUser',
         summary: 'Guardar usuario',
@@ -116,7 +116,6 @@ class AuthController extends Controller
             'data' => $user,
         ], 200);
     }
-
     #[OA\Get(
         path: '/api/v1/profile',
         summary: 'Obtener perfil del usuario autenticado',
@@ -142,7 +141,6 @@ class AuthController extends Controller
 
         return new UserInfoResource($user);
     }
-
     #[OA\Get(
         path: '/api/v1/roles',
         summary: 'Obtener roles',
@@ -162,7 +160,6 @@ class AuthController extends Controller
             'data' => $resp,
         ]);
     }
-
     #[OA\Get(
         path: '/api/v1/positions',
         summary: 'Obtener posiciones',
@@ -182,7 +179,6 @@ class AuthController extends Controller
             'data' => $resp,
         ]);
     }
-
     #[OA\Post(
         path: '/api/v1/save-patient',
         summary: 'Crear nuevo usuario.',
@@ -261,7 +257,51 @@ class AuthController extends Controller
         }
         return response()->json($user, 200);
     }
+    #[OA\Get(
+        path: '/api/v1/auth/get-all-system-user',
+        summary: 'Obtener todos los usuarios',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+        ]
+    )]
+    public function getAllSystemUser(Request $request)
+    {
+        $query = User::query()
+            ->with([
+                'position',  
+                'billingPatients.patient',
+                'billingPatients.doctor.position', 
+                'nationalities',
+                'maritalStatus',
+                'documentType',
+                'insurance',
+                'userLocations',
+                'userType',
+            ]);
 
+        if ($request->filled('search')) {
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('id', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('document_number', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query
+            ->orderByDesc('users.created_at')
+            ->paginate(
+                $request->integer('per_page', 50)
+            );
+
+        return UserListResource::collection($users);
+    }
     #[OA\Post(
         path: '/api/v1/logout',
         summary: 'Cerrar sesión',

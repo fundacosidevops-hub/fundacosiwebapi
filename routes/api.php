@@ -32,6 +32,7 @@ Route::prefix('v1')->group(function () {
         Route::get('roles', [AuthController::class, 'roles']);
         Route::get('profile', [AuthController::class, 'profile']);
         Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);
+        Route::get('auth/get-all-system-user', [AuthController::class, 'getAllSystemUser']);
         Route::get('billing/payment-methods', [BillingController::class, 'getPaymentMethods']);
         Route::get('billing/get-all-cashier-list', [BillingController::class, 'getAllCashierList']);
         Route::get('common/medical-studies', [CommonController::class, 'getStudiesByInsurance']);
