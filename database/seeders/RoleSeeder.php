@@ -58,6 +58,10 @@ class RoleSeeder extends Seeder
             'laboratory.view',
             'laboratory.create',
             'laboratory.update',
+            // Contabilidad / caja
+            'accounting.view',
+            'accounting.manage',
+            'cash.operate',
         ];
 
         foreach ($permissions as $permission) {
@@ -81,7 +85,8 @@ class RoleSeeder extends Seeder
             'Recepcion',
             'Caja',
             'Farmacia',
-            'Laboratorio'
+            'Laboratorio',
+            'Contabilidad',
         ];
 
         foreach ($roles as $role) {
@@ -113,6 +118,9 @@ class RoleSeeder extends Seeder
                 'users.create',
                 'users.update',
                 'billing.view',
+                'accounting.view',
+                'accounting.manage',
+                'cash.operate',
             ]);
 
         // Médico
@@ -143,6 +151,7 @@ class RoleSeeder extends Seeder
             ->givePermissionTo([
                 'billing.view',
                 'billing.create',
+                'cash.operate',
             ]);
 
         // Farmacia
@@ -159,6 +168,13 @@ class RoleSeeder extends Seeder
                 'laboratory.view',
                 'laboratory.create',
                 'laboratory.update',
+            ]);
+
+        // Contabilidad
+        Role::findByName('Contabilidad', 'api')
+            ->givePermissionTo([
+                'accounting.view',
+                'accounting.manage',
             ]);
     }
 }

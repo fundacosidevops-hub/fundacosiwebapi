@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\UserInfoResource;
 use App\Http\Resources\UserListResource;
+use App\Models\DocumentType;
 use App\Models\MedicalCatalogServices;
 use App\Models\Positions;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 use Spatie\Permission\Models\Role;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -193,7 +195,10 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'id' => 'required|integer',
-            'documentId' => 'required|string|max:50',
+            'documentId' => 'nullable|string|max:50',
+            'noDocument' => 'nullable|boolean',
+            'holderId' => 'nullable|integer|exists:users,id',
+            'relationshipTypeId' => 'nullable|integer|exists:relationship_types,id',
             'name' => 'required|string',
             'lastName' => 'required|string',
             'gender' => 'required|string',
@@ -211,8 +216,48 @@ class AuthController extends Controller
             'roleId' => 'required|string',
             'serviceId' => 'nullable|integer|required_if:userTypeId,3',
         ]);
+
+        // Menor sin documento: se identifica por su registro y su tutor.
+        $noDocument = (bool) ($validated['noDocument'] ?? false);
+        $documentId = $noDocument ? null : trim((string) ($validated['documentId'] ?? ''));
+        $documentTypeId = $validated['documentTypeId'];
+
+        if (! $noDocument && $documentId === '') {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'El número de documento es requerido.',
+            ], 422);
+        }
+
+        $existing = User::find($validated['id']);
+
+        if ($noDocument) {
+            $hasHolder = ! empty($validated['holderId']) || ($existing && $existing->dependent_of);
+            if (! $hasHolder) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Un menor sin documento debe registrarse desde el perfil de su tutor.',
+                ], 422);
+            }
+            $documentTypeId = DocumentType::where('description', 'Menor sin documento')->value('id') ?? $documentTypeId;
+        }
+
+        if (! empty($validated['holderId']) && (int) $validated['holderId'] === (int) $validated['id']) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Un usuario no puede ser dependiente de sí mismo.',
+            ], 422);
+        }
+
+        if (! empty($validated['holderId']) && User::whereKey($validated['holderId'])->whereNotNull('dependent_of')->exists()) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'El tutor seleccionado es dependiente de otra persona.',
+            ], 422);
+        }
+
         $data = [
-            'document_number' => $validated['documentId'],
+            'document_number' => $documentId,
             'avatar' => 'avatar.jpg',
             'name' => mb_strtoupper($validated['name'], 'UTF-8'),
             'last_name' => mb_strtoupper($validated['lastName'], 'UTF-8'),
@@ -220,12 +265,12 @@ class AuthController extends Controller
             'marital_status_id' => $validated['civilStatusId'],
             'birth_date' => $validated['birthDate'],
             'position_id' => $validated['positionId'],
-            'document_type_id' => $validated['documentTypeId'],
+            'document_type_id' => $documentTypeId,
             'nationalities_id' => $validated['nationalitieId'],
-            'insurance_id' => $validated['insuranceId'],
-            'email' => $validated['email'] ?? $validated['documentId'] . '@funsacosixxi.com',
-            'phone' => $validated['phone'],
-            'policy' => $validated['policy'],
+            'insurance_id' => $validated['insuranceId'] ?? null,
+            'email' => $validated['email'] ?? $existing?->email ?? (($documentId ?: 'menor-' . Str::lower(Str::random(10))) . '@funsacosixxi.com'),
+            'phone' => $validated['phone'] ?? null,
+            'policy' => $validated['policy'] ?? null,
             'user_type_id' => $validated['userTypeId'],
             'user_locations_id' => $validated['locationId'],
             'is_active' => 1,
@@ -248,6 +293,14 @@ class AuthController extends Controller
 
 
         $user->syncRoles([$validated['roleId']]);
+
+        // Creado desde el perfil del tutor: queda vinculado como dependiente.
+        if (! empty($validated['holderId'])) {
+            $user->update([
+                'dependent_of' => $validated['holderId'],
+                'relationship_type_id' => $validated['relationshipTypeId'] ?? $user->relationship_type_id,
+            ]);
+        }
 
         if ((int) $validated['userTypeId'] === 3) {
             MedicalCatalogServices::updateOrCreate(
@@ -319,5 +372,60 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Sesión cerrada correctamente',
         ]);
+    }
+    #[OA\Post(
+        path: '/api/v1/change-password',
+        summary: 'Cambiar la contraseña del usuario autenticado',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['currentPassword', 'password', 'password_confirmation'],
+                properties: [
+                    new OA\Property(property: 'currentPassword', type: 'string', example: 'actual123'),
+                    new OA\Property(property: 'password', type: 'string', example: 'nueva1234'),
+                    new OA\Property(property: 'password_confirmation', type: 'string', example: 'nueva1234'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Contraseña actualizada correctamente'),
+            new OA\Response(response: 401, description: 'No autorizado'),
+            new OA\Response(response: 422, description: 'Datos inválidos o contraseña actual incorrecta'),
+        ]
+    )]
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate(
+            [
+                'currentPassword' => 'required|string',
+                'password' => 'required|string|min:8|confirmed',
+            ],
+            [
+                'currentPassword.required' => 'La contraseña actual es requerida.',
+                'password.required' => 'La nueva contraseña es requerida.',
+                'password.min' => 'La nueva contraseña debe tener al menos 8 caracteres.',
+                'password.confirmed' => 'La confirmación no coincide con la nueva contraseña.',
+            ]
+        );
+
+        $user = auth()->user();
+
+        if (! Hash::check($validated['currentPassword'], $user->password)) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'La contraseña actual es incorrecta.',
+                'errors' => ['currentPassword' => ['La contraseña actual es incorrecta.']],
+            ], 422);
+        }
+
+        $user->password = Hash::make($validated['password']);
+        $user->save();
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Contraseña actualizada correctamente.',
+        ], 200);
     }
 }

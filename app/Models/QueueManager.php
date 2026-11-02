@@ -22,6 +22,7 @@ class QueueManager extends Model
         'catalog_services_id',
         'doctor_id',
         'special_turn',
+        'patient_user_id',
     ];
 
     /*
@@ -44,6 +45,11 @@ class QueueManager extends Model
     {
         return $this->belongsTo(User::class, 'assign_user_id');
     } 
+    /** Paciente exacto del turno (puede ser un dependiente del titular). */
+    public function patient()
+    {
+        return $this->belongsTo(User::class, 'patient_user_id');
+    }
     public function doctor()
     {
         return $this->belongsTo(User::class, 'doctor_id');

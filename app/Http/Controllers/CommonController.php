@@ -188,13 +188,19 @@ class CommonController
     )]
     public function getPatientInformation(Request $request)
     {
-        $documentId = str_replace(' ', '', $request->documentId);
+        $documentId = str_replace(' ', '', (string) $request->documentId);
+
+        if ($documentId === '') {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Paciente no encontrado',
+            ], 200);
+        }
 
         $user = User::with([
-            'nationalities',
-            'maritalStatus',
-            'documentType',
             'insurance',
+            'relationShipDependent.insurance',
+            'relationShipDependent.relationShipType',
         ])
             ->where('document_number', $documentId)
             ->first();
@@ -206,7 +212,36 @@ class CommonController
             ], 200);
         }
 
-        return new UserInfoResource($user);
+        // Endpoint público (kiosco): solo se devuelve lo necesario para sacar
+        // el turno. Nada de documento, teléfono, correo ni fecha completa.
+        $insurance = fn ($u) => $u->insurance
+            ? ['id' => $u->insurance->id, 'description' => $u->insurance->description]
+            : null;
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => '',
+            'data' => [
+                'id' => $user->id,
+                'name' => $this->firstWord($user->name),
+                'insurance' => $insurance($user),
+                'dependents' => $user->relationShipDependent
+                    ->where('is_active', true)
+                    ->values()
+                    ->map(fn ($d) => [
+                        'id' => $d->id,
+                        'name' => trim($this->firstWord($d->name) . ' ' . mb_substr((string) $d->last_name, 0, 1) . '.'),
+                        'relationship' => $d->relationShipType?->description,
+                        'age' => $d->birth_date ? Carbon::parse($d->birth_date)->age : null,
+                        'insurance' => $insurance($d),
+                    ]),
+            ],
+        ], 200);
+    }
+
+    private function firstWord(?string $value): string
+    {
+        return explode(' ', trim((string) $value))[0] ?? '';
     }
     #[OA\Post(
         path: '/api/v1/save-ticket',
@@ -246,8 +281,29 @@ class CommonController
             'doctorId' => 'required|integer',
             'billingType' => 'required|string',
             'specialTurn' => 'nullable|boolean',
+            'patientUserId' => 'nullable|integer',
         ]);
-        DB::transaction(function () use ($validated, &$data) {
+
+        // El turno puede ser para el titular del documento o para uno de sus
+        // dependientes (por ejemplo, un menor sin cédula).
+        $patientUserId = null;
+        if (! empty($validated['patientUserId'])) {
+            $holder = User::where('document_number', $validated['documentId'])->first();
+            $patient = User::find($validated['patientUserId']);
+
+            $isHolder = $holder && $patient && $patient->id === $holder->id;
+            $isDependent = $holder && $patient && (int) $patient->dependent_of === $holder->id;
+
+            if (! $isHolder && ! $isDependent) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'La persona seleccionada no está vinculada a este documento.',
+                ], 422);
+            }
+            $patientUserId = $patient->id;
+        }
+
+        DB::transaction(function () use ($validated, $patientUserId, &$data) {
 
             $lastNumber = QueueManager::where('catalog_services_id', $validated['catalogServiceId'])
                 ->whereDate('created_at', now())
@@ -263,13 +319,14 @@ class CommonController
                 'curr_number' => $nextNumber,
                 'ticket' => $ticket,
                 'patient_id' => $validated['documentId'],
+                'patient_user_id' => $patientUserId,
                 'location' => $validated['locationId'],
                 'assign_user_id' => null,
                 'billing_type' => $validated['billingType'],
                 'insurance_id' => $validated['insuranceId'],
                 'catalog_services_id' => $validated['catalogServiceId'],
                 'doctor_id' => $validated['doctorId'],
-                'special_turn' => $validated['specialTurn'],
+                'special_turn' => $validated['specialTurn'] ?? false,
             ]);
             $data = QueueManager::with('doctor.position')
                 ->where('patient_id', $validated['documentId'])
@@ -760,7 +817,15 @@ class CommonController
             },
             'billingPatients.patient',
             'billingPatients.doctor.position',
+            // Turnos viejos (sin paciente exacto): se buscan por documento.
             'billingPatients.patient.queueManager' => function ($query) use ($validated) {
+                $query->whereDate('created_at', $validated['date'])
+                    ->whereNull('patient_user_id')
+                    ->where('status', 'done');
+            },
+            // Turnos nuevos: por el ID del paciente (sirve para menores sin documento
+            // y evita mostrarle al tutor el turno de su hijo).
+            'billingPatients.patient.queueManagerByUser' => function ($query) use ($validated) {
                 $query->whereDate('created_at', $validated['date'])
                     ->where('status', 'done');
             },
@@ -793,35 +858,83 @@ class CommonController
     public function updateRelationships(Request $request)
     {
         $validated = $request->validate([
-            'holderId' => 'required|integer',
-            'dependentId' => 'required|integer',
-            'relationshipTypeId' => 'required|integer'
+            'holderId' => 'required|integer|exists:users,id',
+            'dependentId' => 'required|integer|exists:users,id|different:holderId',
+            'relationshipTypeId' => 'required|integer|exists:relationship_types,id',
+        ], [
+            'dependentId.different' => 'Un usuario no puede ser dependiente de sí mismo.',
         ]);
 
-        DB::beginTransaction();
+        $holder = User::find($validated['holderId']);
+        $dependent = User::find($validated['dependentId']);
+
+        // Un solo nivel: el titular no puede ser dependiente de otro, y el
+        // dependiente no puede tener dependientes propios.
+        if ($holder->dependent_of) {
+            return $this->relationshipError('El titular ya es dependiente de otra persona. Vincula los dependientes a ese titular.');
+        }
+        if ($dependent->relationShipDependent()->exists()) {
+            return $this->relationshipError('Esta persona tiene sus propios dependientes y no puede ser dependiente.');
+        }
+        if ($dependent->dependent_of && (int) $dependent->dependent_of !== $holder->id) {
+            return $this->relationshipError('Esta persona ya es dependiente de otro titular. Desvincúlala primero.');
+        }
 
         try {
-            User::where('id', $validated['dependentId'])
-                ->update([
-                    'dependent_of' => $validated['holderId'],
-                    'relationship_type_id' => $validated['relationshipTypeId']
-                ]);
-            $dependents = User::where(
-                'dependent_of',
-                $validated['holderId']
-            )->get();
+            $dependent->update([
+                'dependent_of' => $holder->id,
+                'relationship_type_id' => $validated['relationshipTypeId'],
+            ]);
 
-            DB::commit();
-
-            return response()->json(UserListResource::collection($dependents), 200);
+            return response()->json($this->dependentsOf($holder->id), 200);
         } catch (\Exception $e) {
-
-            DB::rollBack();
-
             return response()->json([
-                'message' => 'Error al guardar la asistencia',
-                'error' => $e->getMessage(),
+                'isSuccess' => false,
+                'message' => 'Error al vincular el dependiente.',
             ], 500);
         }
+    }
+
+    public function removeRelationship(Request $request)
+    {
+        $validated = $request->validate([
+            'holderId' => 'required|integer|exists:users,id',
+            'dependentId' => 'required|integer|exists:users,id',
+        ]);
+
+        $dependent = User::where('id', $validated['dependentId'])
+            ->where('dependent_of', $validated['holderId'])
+            ->first();
+
+        if (! $dependent) {
+            return $this->relationshipError('Esta persona no es dependiente de este titular.');
+        }
+
+        // Un menor sin documento solo se puede encontrar por su tutor.
+        if (empty($dependent->document_number)) {
+            return $this->relationshipError('Un menor sin documento debe tener un tutor. Vincúlalo a otro tutor en lugar de quitarlo.');
+        }
+
+        $dependent->update([
+            'dependent_of' => null,
+            'relationship_type_id' => null,
+        ]);
+
+        return response()->json($this->dependentsOf((int) $validated['holderId']), 200);
+    }
+
+    private function dependentsOf(int $holderId)
+    {
+        return User::with('relationShipType')
+            ->where('dependent_of', $holderId)
+            ->get();
+    }
+
+    private function relationshipError(string $message)
+    {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => $message,
+        ], 422);
     }
 }

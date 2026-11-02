@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\AccountingException;
 use App\Http\Resources\UserInfoResource;
+use App\Models\Accounting\CashSession;
+use App\Services\AccountingService;
 use App\Models\InvoiceItems;
 use App\Models\Invoices;
 use App\Models\PaymentMethods;
@@ -58,7 +61,7 @@ class BillingController extends Controller
     )]
     public function getUserBillingInfo(Request $request)
     {
-        $document = str_replace(' ', '', $request->document);
+        $document = str_replace(' ', '', (string) $request->document);
         $userTypeId = $request->userTypeId;
         $searchType = $request->searchType;
 
@@ -72,17 +75,48 @@ class BillingController extends Controller
             'roles',
             'medicalCatalogServicesByUser',
             'relationShipDependent',
-            'relationShipDependent.relationShipType'
+            'relationShipDependent.relationShipType',
+            'relationShipType',
+            'holder.insurance',
+            'holder.relationShipDependent.relationShipType',
         ])->where('user_type_id', $userTypeId);
 
-        if ($searchType == 1) {
+        // 1 = cédula, 3 = pasaporte (ambos se guardan en document_number),
+        // 2 = número de registro (ID interno). Cualquier otro valor no busca
+        // nada: antes devolvía el primer paciente de la tabla.
+        if ($document === '') {
+            return response()->json(null, 200);
+        }
+        if (in_array((int) $searchType, [1, 3], true)) {
             $user = $user->where('document_number', $document);
-        } elseif ($searchType == 2) {
-            $user = $user->where('id', $document);
+        } elseif ((int) $searchType === 2 && ctype_digit($document)) {
+            $user = $user->where('id', (int) $document);
+        } else {
+            return response()->json(null, 200);
         }
 
         $user = $user->first();
         return response()->json($user ? new UserInfoResource($user) : null, 200);
+    }
+
+    /**
+     * El turno guarda el paciente exacto (patient_user_id). Los turnos viejos,
+     * sin ese dato, se comparan por documento: el del paciente o, si es un
+     * dependiente, el de su tutor.
+     */
+    private function ticketBelongsToPatient(QueueManager $ticket, User $patient): bool
+    {
+        if ($ticket->patient_user_id) {
+            return (int) $ticket->patient_user_id === $patient->id;
+        }
+
+        $document = (string) $ticket->patient_id;
+        if ($document !== '' && $document === (string) $patient->document_number) {
+            return true;
+        }
+
+        return $patient->dependent_of
+            && User::whereKey($patient->dependent_of)->where('document_number', $document)->exists();
     }
 
     public function generateNextInvoice(string $lastInvoice): string
@@ -144,7 +178,8 @@ class BillingController extends Controller
     {
         $validated = $request->validate([
             'id' => 'required|integer',
-            'patientId' => 'required|string',
+            // Puede venir vacío para un menor sin documento; se factura por id.
+            'patientId' => 'nullable|string',
             'doctorId' => 'required|integer',
             'insuranceId' => 'nullable|integer',
             'billingType' => 'required|in:private,insured',
@@ -164,19 +199,44 @@ class BillingController extends Controller
             'items.*.total' => 'required|numeric',
         ]);
 
+        if (empty($validated['ticketId'])) {
+            return response()->json([
+                'message' => 'Este paciente no tiene turno. Llama su turno (F2) antes de facturar.',
+                'isSuccess' => false,
+            ], 422);
+        }
+
+        // buscaa el paciente por documento
+        $patient = User::where('id', $validated['id'])->first();
+
+        if (! $patient) {
+            return response()->json([
+                'message' => 'No se puede facturar el paciente porque no esta creado en el sistema.',
+                'isSuccess' => false,
+            ], 404);
+        }
+
+        // Toda factura sale de un turno, y el turno debe ser de este paciente
+        // (cada persona saca su propio turno, aunque sea de la misma familia).
+        $ticket = QueueManager::find($validated['ticketId']);
+
+        if (! $ticket) {
+            return response()->json([
+                'message' => 'El turno no existe. Llama el turno del paciente antes de facturar.',
+                'isSuccess' => false,
+            ], 422);
+        }
+
+        if (! $this->ticketBelongsToPatient($ticket, $patient)) {
+            return response()->json([
+                'message' => "El turno {$ticket->ticket} es de otra persona. Llama el turno de este paciente para facturarlo.",
+                'isSuccess' => false,
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
-
-            // buscaa el paciente por documento
-            $patient = User::where('id', $validated['id'])->first();
-
-            if (! $patient) {
-                return response()->json([
-                    'message' => 'No se puede facturar el paciente porque no esta creado en el sistema.',
-                    'isSuccess' => false,
-                ], 404);
-            }
 
             // crear factura
             $invoice = Invoices::create([
@@ -207,9 +267,11 @@ class BillingController extends Controller
                     'total' => $item['total'],
                 ]);
             }
-            if ($validated['ticketId']) {
-                QueueManager::where('id', $validated['ticketId'])->update(['status' => 'done']);
-            }
+            $ticket->update(['status' => 'done']);
+
+            // Asiento contable de la factura (CxC paciente / CxC ARS / ingresos).
+            app(AccountingService::class)->postInvoice($invoice);
+
             DB::commit();
             $invoice->load([
                 'patient',
@@ -223,6 +285,13 @@ class BillingController extends Controller
             ]);
 
             return response()->json($invoice, 200);
+        } catch (AccountingException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'isSuccess' => false,
+            ], 422);
         } catch (\Exception $e) {
 
             DB::rollBack();
@@ -264,28 +333,56 @@ class BillingController extends Controller
             'total' => 'required|numeric',
         ]);
 
+        $invoice = Invoices::find($validated['invoiceId']);
+        if (! $invoice) {
+            return response()->json(['message' => 'La factura no existe.', 'isSuccess' => false], 404);
+        }
+        if (Payments::where('invoices_id', $invoice->id)->exists()) {
+            return response()->json(['message' => 'Esta factura ya fue cobrada.', 'isSuccess' => false], 422);
+        }
+
+        // Todo cobro entra en la caja abierta del cajero (para el cuadre).
+        $session = null;
+        if (AccountingService::enabled()) {
+            $session = CashSession::where('user_id', auth()->id())->where('status', 'open')->first();
+            if (! $session) {
+                return response()->json([
+                    'message' => 'Abre tu caja antes de cobrar.',
+                    'isSuccess' => false,
+                    'code' => 'cash_session_required',
+                ], 422);
+            }
+        }
+
         DB::beginTransaction();
 
         try {
             // crear pago a factura
-            $invoice = Payments::create([
-                'invoices_id' => $validated['invoiceId'],
+            $payment = Payments::create([
+                'invoices_id' => $invoice->id,
                 'payment_method_id' => $validated['paymentMethodId'],
+                'cash_session_id' => $session?->id,
                 'amount' => $validated['total'],
-                'reference' => 'Pago a factura No.' . $validated['invoiceId'],
-                'paid_at' => NOW(),
+                'reference' => 'Pago a factura No.' . $invoice->id,
+                'paid_at' => now(),
             ]);
 
-            DB::commit();
             // cambiar estado a la factura a pagado
-            Invoices::where('id', $validated['invoiceId'])->update([
-                'status_id' => 3,
-            ]);
+            $invoice->update(['status_id' => 3]);
+
+            // Asiento contable del cobro (caja/banco contra CxC paciente).
+            app(AccountingService::class)->postPayment($payment, $invoice);
+
+            DB::commit();
 
             return response()->json([
                 'message' => 'Pago creado correctamente',
-                'data' => $invoice,
+                'data' => $payment,
             ], 200);
+        } catch (AccountingException $e) {
+            DB::rollBack();
+
+            return response()->json(['message' => $e->getMessage(), 'isSuccess' => false], 422);
         } catch (\Exception $e) {
 
             DB::rollBack();

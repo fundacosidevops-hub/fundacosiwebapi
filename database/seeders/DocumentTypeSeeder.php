@@ -13,6 +13,7 @@ class DocumentTypeSeeder extends Seeder
             ['description' => 'Cedula'],
             ['description' => 'Pasaporte'],
             ['description' => 'RNC'],
+            ['description' => 'Menor sin documento'],
         ], ['description'],
             []);
     }

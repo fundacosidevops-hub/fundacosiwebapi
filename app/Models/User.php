@@ -87,6 +87,11 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(User::class,'dependent_of', 'id');
     }
+    /** Titular (tutor) del que este usuario es dependiente. */
+    public function holder()
+    {
+        return $this->belongsTo(User::class, 'dependent_of');
+    }
     public function relationShipType()
     {
         return $this->hasOne(RelationshipTypes::class,'id','relationship_type_id');
@@ -110,6 +115,11 @@ class User extends Authenticatable implements JWTSubject
     public function queueManager()
     {
         return $this->hasOne(QueueManager::class, 'patient_id', 'document_number');
+    }
+    /** Turno guardado con el ID exacto del paciente (incluye menores sin documento). */
+    public function queueManagerByUser()
+    {
+        return $this->hasOne(QueueManager::class, 'patient_user_id', 'id');
     }
     public function queueManagerDoctor()
     {
