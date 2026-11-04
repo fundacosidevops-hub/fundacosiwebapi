@@ -9,6 +9,8 @@ use App\Http\Controllers\Clinical\EncounterController;
 use App\Http\Controllers\Clinical\PatientRecordController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CommonController;
+use App\Http\Controllers\UserAdminController;
+use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -21,7 +23,7 @@ Route::prefix('v1')->group(function () {
     Route::get('common/catalog-services-doctor', [CommonController::class, 'getDoctorsByCatalogServices']);
     Route::get('common/get-ticket-location', [CommonController::class, 'getTicketByLocation']);
 
-    Route::middleware('auth:api')->group(function () {
+    Route::middleware(['auth:api', EnsureUserIsActive::class])->group(function () {
         /* POST  */
         Route::post('save-patient', [AuthController::class, 'savePatient']);
         Route::post('saveUser', [AuthController::class, 'saveUser']);
@@ -50,6 +52,17 @@ Route::prefix('v1')->group(function () {
         Route::get('common/get-all-doctors', [CommonController::class, 'getAllDoctors']);
         Route::get('common/get-all-tickets-location', [CommonController::class, 'getAllTicketsByLocation']);
         Route::get('common/get-relationship-types', [CommonController::class, 'getRelationshipTypes']);
+
+        /* USUARIOS: mi cuenta y usuarios del sistema (Ajustes) */
+        Route::get('users/catalogs', [UserAdminController::class, 'catalogs']);
+        Route::get('users/me', [UserAdminController::class, 'me']);
+        Route::put('users/me', [UserAdminController::class, 'updateMe']);
+        Route::get('users', [UserAdminController::class, 'index']);
+        Route::post('users', [UserAdminController::class, 'store']);
+        Route::get('users/{id}', [UserAdminController::class, 'show'])->whereNumber('id');
+        Route::put('users/{id}', [UserAdminController::class, 'update'])->whereNumber('id');
+        Route::post('users/{id}/password', [UserAdminController::class, 'resetPassword'])->whereNumber('id');
+        Route::put('users/{id}/active', [UserAdminController::class, 'setActive'])->whereNumber('id');
 
         /* CAJA (cuadre por cajero) */
         Route::get('cash/current', [CashSessionController::class, 'current']);

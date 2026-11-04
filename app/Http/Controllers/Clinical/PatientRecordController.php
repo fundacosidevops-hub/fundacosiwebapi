@@ -206,7 +206,12 @@ class PatientRecordController extends Controller
     {
         $this->authorizeAny('clinical.view', 'clinical.triage');
 
-        return response()->json(User::where('user_type_id', 3)->orderBy('name')->get(['id', 'name', 'last_name']));
+        $q = User::where('user_type_id', 3)->orderBy('name');
+        if ($locked = $this->lockedDoctorId()) {
+            $q = User::whereKey($locked);
+        }
+
+        return response()->json($q->get(['id', 'name', 'last_name']));
     }
 
     /**
@@ -216,10 +221,13 @@ class PatientRecordController extends Controller
     public function worklist(Request $request)
     {
         $this->authorizeAny('clinical.view', 'clinical.triage');
-        $date = $request->input('date', now()->toDateString());
+        $request->validate(['date' => 'nullable|date_format:Y-m-d'], ['date.date_format' => 'La fecha no es válida.']);
+        $date = $request->input('date') ?: now()->toDateString();
         $doctorId = $request->input('doctor_id');
-        if ($doctorId === null && (int) auth()->user()->user_type_id === 3) {
-            $doctorId = auth()->id();
+        // Un médico solo ve sus propios pacientes, aunque pida otro doctor_id.
+        $locked = $this->lockedDoctorId();
+        if ($locked) {
+            $doctorId = $locked;
         }
 
         $q = Invoices::with(['patient:id,name,last_name,document_number,birth_date,gender', 'doctor:id,name,last_name', 'catalogServices:id,description'])
@@ -237,6 +245,7 @@ class PatientRecordController extends Controller
         return response()->json([
             'date' => $date,
             'doctor_id' => $doctorId,
+            'doctor_locked' => (bool) $locked,
             'rows' => $invoices->map(function ($f) use ($encounters, $allergies) {
                 $e = $encounters->get($f->id);
                 $age = $f->patient?->birth_date ? Carbon::parse($f->patient->birth_date)->age : null;

@@ -49,6 +49,13 @@ class AuthController extends Controller
             return response()->json(['error' => 'Credenciales inválidas'], 401);
         }
 
+        // Un usuario desactivado no puede entrar aunque la contraseña sea correcta.
+        if (Auth::guard('api')->user()?->is_active === false) {
+            Auth::guard('api')->invalidate();
+
+            return response()->json(['error' => 'Tu usuario está desactivado. Habla con un administrador.'], 403);
+        }
+
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
@@ -231,6 +238,17 @@ class AuthController extends Controller
 
         $existing = User::find($validated['id']);
 
+        // Desde facturación solo se registran y editan pacientes. El tipo y el
+        // rol no se aceptan del navegador: un paciente siempre es «Paciente».
+        if ($existing && (int) $existing->user_type_id !== 2) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Este usuario es del sistema. Edítalo en Ajustes → Usuarios del sistema.',
+            ], 422);
+        }
+        $validated['userTypeId'] = 2;
+        $validated['roleId'] = 'Paciente';
+
         if ($noDocument) {
             $hasHolder = ! empty($validated['holderId']) || ($existing && $existing->dependent_of);
             if (! $hasHolder) {
@@ -273,7 +291,8 @@ class AuthController extends Controller
             'policy' => $validated['policy'] ?? null,
             'user_type_id' => $validated['userTypeId'],
             'user_locations_id' => $validated['locationId'],
-            'is_active' => 1,
+            // Al editar se respeta si el usuario está desactivado; uno nuevo nace activo.
+            'is_active' => $existing ? $existing->is_active : 1,
         ];
 
         $user = User::where('id', $validated['id'])

@@ -2,7 +2,7 @@
 # Laravel
 # ==========================
 
-/vendor/
+/vendor
 /node_modules/
 
 # Environment

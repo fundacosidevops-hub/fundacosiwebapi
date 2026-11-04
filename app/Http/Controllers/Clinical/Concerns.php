@@ -21,6 +21,23 @@ trait Concerns
         abort(403, 'No tienes permiso para esta sección del historial clínico.');
     }
 
+    /**
+     * Si el usuario es médico (y no SuperAdmin/Administrador), devuelve su id:
+     * solo puede ver sus propios pacientes en la lista del día.
+     */
+    protected function lockedDoctorId(): ?int
+    {
+        $user = auth()->user();
+        if (! $user || $user->hasAnyRole(['SuperAdmin', 'Administrador'])) {
+            return null;
+        }
+        if ($user->hasRole('Medico') || (int) $user->user_type_id === 3) {
+            return (int) $user->id;
+        }
+
+        return null;
+    }
+
     protected function hasPerm(string $permission): bool
     {
         return (bool) auth()->user()?->can($permission);

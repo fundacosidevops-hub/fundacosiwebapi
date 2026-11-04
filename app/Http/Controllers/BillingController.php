@@ -62,7 +62,9 @@ class BillingController extends Controller
     public function getUserBillingInfo(Request $request)
     {
         $document = str_replace(' ', '', (string) $request->document);
-        $userTypeId = $request->userTypeId;
+        // Facturación solo trabaja con pacientes: empleados y doctores no se
+        // consultan aquí (se gestionan en Ajustes → Usuarios del sistema).
+        $userTypeId = 2;
         $searchType = $request->searchType;
 
         $user = User::with([
