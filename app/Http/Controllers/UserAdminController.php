@@ -15,6 +15,8 @@ use App\Models\UserType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 
@@ -38,7 +40,7 @@ class UserAdminController extends Controller
         'gender.in' => 'El género no es válido.',
         'email.required' => 'El correo es requerido.',
         'email.email' => 'El correo no es válido.',
-        'email.unique' => 'Ese correo ya lo usa otro usuario.',
+        'email.unique' => 'Ese correo ya lo usa otro usuario (puede ser su registro de paciente). El correo es con el que se entra al sistema y no puede repetirse.',
         'birthDate.date_format' => 'La fecha de nacimiento no es válida.',
         'birthDate.before_or_equal' => 'La fecha de nacimiento no puede ser futura.',
         'documentId.max' => 'El documento es demasiado largo.',
@@ -97,7 +99,7 @@ class UserAdminController extends Controller
         $user = auth()->user();
         $v = $request->validate($this->personalRules($user), self::MESSAGES);
 
-        if ($error = $this->documentConflict($v, $user->id)) {
+        if ($error = $this->documentConflict($v, $user->id, $user->user_type_id ? (int) $user->user_type_id : null)) {
             return $this->fail($error);
         }
 
@@ -172,6 +174,7 @@ class UserAdminController extends Controller
                 'position' => $u->position?->description,
                 'location' => $u->userLocations?->description,
                 'is_active' => (bool) $u->is_active,
+                'avatar' => $this->avatarPath($u),
                 'created_at' => $u->created_at,
                 'can_manage' => $this->canManage($u),
             ]),
@@ -214,7 +217,7 @@ class UserAdminController extends Controller
         if ($v['roleId'] === 'SuperAdmin' && ! $this->isSuperAdmin()) {
             return $this->fail('Solo un SuperAdmin puede asignar el rol SuperAdmin.', 403);
         }
-        if ($error = $this->documentConflict($v, 0)) {
+        if ($error = $this->documentConflict($v, 0, (int) $v['userTypeId'])) {
             return $this->fail($error);
         }
 
@@ -274,7 +277,7 @@ class UserAdminController extends Controller
         if ($isSelf && $v['roleId'] !== $user->roles->pluck('name')->first()) {
             return $this->fail('No puedes cambiar tu propio rol. Pídeselo a otro administrador.');
         }
-        if ($error = $this->documentConflict($v, $user->id)) {
+        if ($error = $this->documentConflict($v, $user->id, (int) $v['userTypeId'])) {
             return $this->fail($error);
         }
 
@@ -399,15 +402,34 @@ class UserAdminController extends Controller
     }
 
     /** Evita que dos personas queden con el mismo documento. */
-    private function documentConflict(array $v, int $userId): ?string
+    /**
+     * La cédula se discrimina por user_type_id: una misma persona puede tener
+     * un registro por cada tipo (por ejemplo, Empleado, Doctor y Paciente)
+     * con la misma cédula. Solo se bloquea repetirla dentro del mismo tipo.
+     */
+    private function documentConflict(array $v, int $userId, ?int $userTypeId): ?string
     {
-        $doc = isset($v['documentId']) ? preg_replace('/\s+/', '', $v['documentId']) : '';
+        $doc = isset($v['documentId']) ? preg_replace('/\s+/', '', (string) $v['documentId']) : '';
         if ($doc === '') {
             return null;
         }
-        $exists = User::where('document_number', $doc)->where('id', '!=', $userId)->exists();
+        $other = User::with('userType:id,description')
+            ->where('document_number', $doc)
+            ->where('id', '!=', $userId)
+            ->when(
+                $userTypeId,
+                fn ($q) => $q->where('user_type_id', $userTypeId),
+                fn ($q) => $q->whereNull('user_type_id')
+            )
+            ->first(['id', 'user_type_id']);
 
-        return $exists ? 'Ese número de documento ya pertenece a otro usuario.' : null;
+        if (! $other) {
+            return null;
+        }
+        $type = mb_strtolower($other->userType?->description ?? 'usuario sin tipo', 'UTF-8');
+
+        // Se indica el registro que choca (número y tipo, sin el nombre).
+        return "Ese número de documento ya pertenece a otro {$type} (Reg. #{$other->id}).";
     }
 
     private function toForm(User $u): array
@@ -438,8 +460,160 @@ class UserAdminController extends Controller
             'location' => $u->userLocations?->description,
             'serviceId' => $service,
             'isActive' => (bool) $u->is_active,
+            'avatar' => $this->avatarPath($u),
             'createdAt' => $u->created_at,
         ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Foto de perfil                                                      */
+    /* ------------------------------------------------------------------ */
+
+    private const AVATAR_DIR = 'avatars';
+    private const AVATAR_SIZE = 256;
+
+    public function uploadMyAvatar(Request $request)
+    {
+        return $this->saveAvatar($request, auth()->user());
+    }
+
+    public function removeMyAvatar()
+    {
+        return $this->clearAvatar(auth()->user());
+    }
+
+    public function uploadAvatar(Request $request, $id)
+    {
+        $this->authorizeAdmin();
+        $user = User::findOrFail($id);
+        if (! $this->canManage($user)) {
+            return $this->fail('Solo un SuperAdmin puede cambiar la foto de otro SuperAdmin.', 403);
+        }
+
+        return $this->saveAvatar($request, $user);
+    }
+
+    public function removeAvatar($id)
+    {
+        $this->authorizeAdmin();
+        $user = User::findOrFail($id);
+        if (! $this->canManage($user)) {
+            return $this->fail('Solo un SuperAdmin puede cambiar la foto de otro SuperAdmin.', 403);
+        }
+
+        return $this->clearAvatar($user);
+    }
+
+    /**
+     * Muestra una foto. Es pública para que funcione en <img>, pero el nombre
+     * del archivo es aleatorio (40 caracteres) y no se puede adivinar.
+     */
+    public function showAvatar(string $file)
+    {
+        abort_unless(preg_match('/^[a-z0-9]{40}\.(webp|jpg)$/', $file), 404);
+        $path = self::AVATAR_DIR . '/' . $file;
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response($path, null, [
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
+    }
+
+    private function saveAvatar(Request $request, User $user)
+    {
+        $request->validate([
+            'photo' => 'required|file|mimes:jpeg,jpg,png,webp|max:1024',
+        ], [
+            'photo.required' => 'Elige una foto.',
+            'photo.mimes' => 'La foto debe ser JPG, PNG o WEBP.',
+            'photo.max' => 'La foto no puede pesar más de 1 MB.',
+            'photo.uploaded' => 'La foto no puede pesar más de 1 MB.',
+        ]);
+
+        $bytes = file_get_contents($request->file('photo')->getRealPath());
+        [$data, $ext] = $this->shrinkAvatar($bytes);
+        if ($data === null) {
+            return $this->fail('No se pudo leer la imagen. Prueba con otra foto.');
+        }
+
+        $path = self::AVATAR_DIR . '/' . Str::lower(Str::random(40)) . '.' . $ext;
+        Storage::disk('local')->put($path, $data);
+
+        $old = $this->avatarPath($user);
+        $user->avatar = $path;
+        $user->save();
+        if ($old) {
+            Storage::disk('local')->delete($old);
+        }
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Foto actualizada.',
+            'avatar' => $path,
+            'size' => strlen($data),
+        ]);
+    }
+
+    private function clearAvatar(User $user)
+    {
+        $old = $this->avatarPath($user);
+        $user->avatar = null;
+        $user->save();
+        if ($old) {
+            Storage::disk('local')->delete($old);
+        }
+
+        return response()->json(['isSuccess' => true, 'message' => 'Foto quitada.', 'avatar' => null]);
+    }
+
+    /**
+     * Recorta al centro, reduce a 256×256 y guarda en WEBP (o JPG si el
+     * servidor no tiene WEBP). Así cada foto pesa unos pocos KB y se eliminan
+     * los datos ocultos del archivo original (ubicación GPS, etc.).
+     *
+     * @return array{0: ?string, 1: string}
+     */
+    private function shrinkAvatar(string $bytes): array
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            // Sin GD: se guarda tal cual (ya validado: imagen y máximo 1 MB).
+            $info = @getimagesizefromstring($bytes);
+
+            return $info ? [$bytes, 'jpg'] : [null, 'jpg'];
+        }
+        $src = @imagecreatefromstring($bytes);
+        if (! $src) {
+            return [null, 'jpg'];
+        }
+        $w = imagesx($src);
+        $h = imagesy($src);
+        $side = min($w, $h);
+        $size = min(self::AVATAR_SIZE, $side);
+        $dst = imagecreatetruecolor($size, $size);
+        imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
+        imagecopyresampled($dst, $src, 0, 0, (int) (($w - $side) / 2), (int) (($h - $side) / 2), $size, $size, $side, $side);
+
+        ob_start();
+        if (function_exists('imagewebp')) {
+            imagewebp($dst, null, 80);
+            $ext = 'webp';
+        } else {
+            imagejpeg($dst, null, 82);
+            $ext = 'jpg';
+        }
+        $out = ob_get_clean();
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        return [$out ?: null, $ext];
+    }
+
+    /** Ruta de la foto si es una subida por el sistema (no los valores viejos como «avatar.jpg»). */
+    private function avatarPath(User $u): ?string
+    {
+        $a = (string) $u->avatar;
+
+        return str_starts_with($a, self::AVATAR_DIR . '/') ? $a : null;
     }
 
     private function isAdmin(): bool

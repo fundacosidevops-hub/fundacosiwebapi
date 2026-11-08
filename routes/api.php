@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     Route::post('login', [AuthController::class, 'login']);
+    Route::get('avatars/{file}', [UserAdminController::class, 'showAvatar']);
     Route::get('common/patient-info', [CommonController::class, 'getPatientInformation']);
     Route::post('common/save-ticket', [CommonController::class, 'saveTicket']);
     Route::get('common/insurance', [CommonController::class, 'getInsurance']);
@@ -57,12 +58,16 @@ Route::prefix('v1')->group(function () {
         Route::get('users/catalogs', [UserAdminController::class, 'catalogs']);
         Route::get('users/me', [UserAdminController::class, 'me']);
         Route::put('users/me', [UserAdminController::class, 'updateMe']);
+        Route::post('users/me/avatar', [UserAdminController::class, 'uploadMyAvatar']);
+        Route::delete('users/me/avatar', [UserAdminController::class, 'removeMyAvatar']);
         Route::get('users', [UserAdminController::class, 'index']);
         Route::post('users', [UserAdminController::class, 'store']);
         Route::get('users/{id}', [UserAdminController::class, 'show'])->whereNumber('id');
         Route::put('users/{id}', [UserAdminController::class, 'update'])->whereNumber('id');
         Route::post('users/{id}/password', [UserAdminController::class, 'resetPassword'])->whereNumber('id');
         Route::put('users/{id}/active', [UserAdminController::class, 'setActive'])->whereNumber('id');
+        Route::post('users/{id}/avatar', [UserAdminController::class, 'uploadAvatar'])->whereNumber('id');
+        Route::delete('users/{id}/avatar', [UserAdminController::class, 'removeAvatar'])->whereNumber('id');
 
         /* CAJA (cuadre por cajero) */
         Route::get('cash/current', [CashSessionController::class, 'current']);
