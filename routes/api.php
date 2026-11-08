@@ -9,6 +9,8 @@ use App\Http\Controllers\Clinical\EncounterController;
 use App\Http\Controllers\Clinical\PatientRecordController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CommonController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\UserAdminController;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +34,11 @@ Route::prefix('v1')->group(function () {
         Route::post('change-password', [AuthController::class, 'changePassword']);
         Route::post('billing/save-bill', [BillingController::class, 'save']);
         Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
+        /* INICIO (tablero): cualquier usuario con sesión */
+        Route::get('dashboard', [DashboardController::class, 'summary']);
+        Route::get('billing/invoices', [InvoiceController::class, 'index']);
+        Route::get('billing/invoices/cashiers', [InvoiceController::class, 'cashiers']);
+        Route::get('billing/invoices/{id}', [InvoiceController::class, 'show'])->whereNumber('id');
         Route::post('common/skip-turn', [CommonController::class, 'skipTurn']);
         Route::post('common/update-assistances-doctor', [CommonController::class, 'updateAssistancesDoctor']);
         Route::post('common/update-turn-status', [CommonController::class, 'updateTurnStatus']);

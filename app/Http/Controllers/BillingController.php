@@ -201,6 +201,17 @@ class BillingController extends Controller
             'items.*.total' => 'required|numeric',
         ]);
 
+        // Toda factura se emite dentro de una caja abierta del cajero (para que
+        // cada NCF quede en un turno de caja y en su cuadre).
+        if (AccountingService::enabled()
+            && ! CashSession::where('user_id', auth()->id())->where('status', 'open')->exists()) {
+            return response()->json([
+                'message' => 'Abre tu caja antes de facturar.',
+                'isSuccess' => false,
+                'code' => 'cash_session_required',
+            ], 422);
+        }
+
         if (empty($validated['ticketId'])) {
             return response()->json([
                 'message' => 'Este paciente no tiene turno. Llama su turno (F2) antes de facturar.',
