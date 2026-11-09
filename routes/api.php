@@ -8,6 +8,7 @@ use App\Http\Controllers\Clinical\AttachmentController;
 use App\Http\Controllers\Clinical\EncounterController;
 use App\Http\Controllers\Clinical\PatientRecordController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\CatalogAdminController;
 use App\Http\Controllers\CommonController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvoiceController;
@@ -108,6 +109,19 @@ Route::prefix('v1')->group(function () {
         Route::put('users/{id}/active', [UserAdminController::class, 'setActive'])->whereNumber('id');
         Route::post('users/{id}/avatar', [UserAdminController::class, 'uploadAvatar'])->whereNumber('id');
         Route::delete('users/{id}/avatar', [UserAdminController::class, 'removeAvatar'])->whereNumber('id');
+
+        /* AJUSTES → MANTENIMIENTOS */
+        // Médicos por especialidad: administradores y usuarios de Facturación.
+        Route::middleware([$billing])->prefix('settings')->group(function () {
+            Route::get('doctor-services', [CatalogAdminController::class, 'doctorServices']);
+            Route::put('doctors/{id}/service', [CatalogAdminController::class, 'setDoctorService'])->whereNumber('id');
+        });
+        // Posiciones: solo administradores.
+        Route::middleware([RequireAccess::class . ':role:SuperAdmin,role:Administrador'])->prefix('settings')->group(function () {
+            Route::get('positions', [CatalogAdminController::class, 'positions']);
+            Route::post('positions', [CatalogAdminController::class, 'storePosition']);
+            Route::put('positions/{id}', [CatalogAdminController::class, 'updatePosition'])->whereNumber('id');
+        });
 
         /* CAJA (cuadre): abrir/cerrar la propia está arriba con Facturación;
            cerrar la de otro y ver cuadres lo valida el controlador (accounting.*) */
