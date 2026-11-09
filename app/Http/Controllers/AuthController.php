@@ -54,9 +54,10 @@ class AuthController extends Controller
         $userKey = 'login:' . Str::lower($credentials['email']) . '|' . $request->ip();
         $ipKey = 'login-ip:' . $request->ip();
         foreach ([[$userKey, 5], [$ipKey, 20]] as [$key, $max]) {
-            if (RateLimiter::tooManyAttempts($key, $max)) {
-                $seconds = RateLimiter::availableIn($key);
-
+            $seconds = $this->limiter(fn () => RateLimiter::tooManyAttempts($key, $max)
+                ? RateLimiter::availableIn($key)
+                : null);
+            if ($seconds !== null) {
                 return response()->json([
                     'error' => "Demasiados intentos. Espera {$seconds} segundos e inténtalo de nuevo.",
                 ], 429)->header('Retry-After', (string) $seconds);
@@ -65,8 +66,10 @@ class AuthController extends Controller
 
         if ($credentials['email'] === '' || $credentials['password'] === ''
             || ! $token = Auth::guard('api')->attempt($credentials)) {
-            RateLimiter::hit($userKey, 60);
-            RateLimiter::hit($ipKey, 60);
+            $this->limiter(function () use ($userKey, $ipKey) {
+                RateLimiter::hit($userKey, 60);
+                RateLimiter::hit($ipKey, 60);
+            });
 
             return response()->json(['error' => 'Credenciales inválidas'], 401);
         }
@@ -82,18 +85,18 @@ class AuthController extends Controller
 
         // Los pacientes no usan el sistema: su registro no sirve para entrar.
         if ((int) $user?->user_type_id === 2) {
-            Auth::guard('api')->invalidate();
-            RateLimiter::hit($userKey, 60);
+            // El token recién creado no se entrega a nadie: se descarta.
+            $this->limiter(fn () => RateLimiter::hit($userKey, 60));
 
             return response()->json(['error' => 'Credenciales inválidas'], 401);
         }
 
-        RateLimiter::clear($userKey);
+        $this->limiter(fn () => RateLimiter::clear($userKey));
 
         // Contraseña débil o por defecto: entra, pero solo puede cambiarla.
         $mustChange = PasswordPolicy::isWeak($credentials['password']);
         if ($mustChange) {
-            Auth::guard('api')->invalidate();
+            // Se reemplaza por un token marcado; el primero nunca sale del servidor.
             $token = Auth::guard('api')->claims(['pwd_change' => true])->login($user);
         }
 
@@ -103,6 +106,24 @@ class AuthController extends Controller
             'expires_in' => JWTAuth::factory()->getTTL() * 60,
             'must_change_password' => $mustChange,
         ]);
+    }
+
+    /**
+     * El límite de intentos usa el caché de Laravel (CACHE_STORE). Si el caché
+     * falla (tabla «cache» inexistente, carpeta sin permisos…), se registra el
+     * error en el log y el login sigue funcionando sin límite, en vez de
+     * responder 500.
+     */
+    private function limiter(\Closure $fn): mixed
+    {
+        try {
+            return $fn();
+        } catch (\Throwable $e) {
+            report($e);
+            \Illuminate\Support\Facades\Log::warning('Límite de intentos de login desactivado: el caché no funciona. Revisa CACHE_STORE y la tabla «cache».');
+
+            return null;
+        }
     }
     #[OA\Post(
         path: '/api/v1/saveUser',
