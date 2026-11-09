@@ -273,8 +273,8 @@ class CommonController
     public function saveTicket(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'required|string',
-            'documentId' => 'required|string|max:20',
+            'code' => ['required', 'string', 'regex:/^[\p{Lu}0-9]{1,4}$/u'],
+            'documentId' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9-]+$/'],
             'locationId' => 'required|integer',
             'catalogServiceId' => 'required|integer',
             'insuranceId' => 'nullable|integer',
@@ -303,6 +303,35 @@ class CommonController
             $patientUserId = $patient->id;
         }
 
+        // Límites contra abuso: un turno activo por persona y servicio, y un
+        // máximo de turnos por documento al día (titular + dependientes).
+        $today = QueueManager::where('patient_id', $validated['documentId'])
+            ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()]);
+
+        $maxPerDocument = (int) config('kiosk.max_tickets_per_document', 6);
+        if ((clone $today)->count() >= $maxPerDocument) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Este documento ya alcanzó el máximo de turnos de hoy. Pase por recepción.',
+            ], 429);
+        }
+
+        $active = (clone $today)
+            ->where('catalog_services_id', $validated['catalogServiceId'])
+            ->whereIn('status', ['pending', 'called'])
+            ->when(
+                $patientUserId,
+                fn ($q) => $q->where('patient_user_id', $patientUserId),
+                fn ($q) => $q->whereNull('patient_user_id')
+            )
+            ->value('ticket');
+        if ($active) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => "Esta persona ya tiene el turno {$active} para este servicio.",
+            ], 422);
+        }
+
         DB::transaction(function () use ($validated, $patientUserId, &$data) {
 
             $lastNumber = QueueManager::where('catalog_services_id', $validated['catalogServiceId'])
@@ -323,7 +352,7 @@ class CommonController
                 'location' => $validated['locationId'],
                 'assign_user_id' => null,
                 'billing_type' => $validated['billingType'],
-                'insurance_id' => $validated['insuranceId'],
+                'insurance_id' => $validated['insuranceId'] ?? null,
                 'catalog_services_id' => $validated['catalogServiceId'],
                 'doctor_id' => $validated['doctorId'],
                 'special_turn' => $validated['specialTurn'] ?? false,
@@ -451,13 +480,29 @@ class CommonController
     )]
     public function getTicketByLocation(Request $request)
     {
+        // Pantalla pública: solo el turno y la caja que lo llama. Nada de
+        // cédulas, correos ni datos del cajero.
         return response()->json(
             QueueManager::with('user.position')
-                ->where('location', $request->locationId)
+                ->where('location', (int) $request->locationId)
                 ->whereNotNull('assign_user_id')
                 ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
                 ->orderBy('id')
-                ->get(),
+                ->get()
+                ->map(fn ($q) => [
+                    'id' => $q->id,
+                    'ticket' => $q->ticket,
+                    'curr_number' => $q->curr_number,
+                    'location' => $q->location,
+                    'status' => $q->status,
+                    'special_turn' => (bool) $q->special_turn,
+                    'user' => [
+                        'position' => [
+                            'description' => $q->user?->position?->description ?? '',
+                        ],
+                    ],
+                ])
+                ->values(),
             200
         );
     }

@@ -12,6 +12,7 @@ use App\Models\Positions;
 use App\Models\User;
 use App\Models\UserLocations;
 use App\Models\UserType;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -50,7 +51,7 @@ class UserAdminController extends Controller
         'userTypeId.in' => 'El tipo de usuario no es válido.',
         'serviceId.required_if' => 'Elige el servicio del doctor.',
         'password.required' => 'La nueva contraseña es requerida.',
-        'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+        'password.min' => 'La contraseña debe tener al menos ' . PasswordPolicy::MIN . ' caracteres.',
         'password.confirmed' => 'La confirmación no coincide con la contraseña.',
         'documentTypeId.exists' => 'El tipo de documento no existe.',
         'civilStatusId.exists' => 'El estado civil no existe.',
@@ -208,7 +209,7 @@ class UserAdminController extends Controller
             'locationId' => 'required|integer|exists:user_locations,id',
             'serviceId' => 'nullable|integer|exists:catalog_services,id|required_if:userTypeId,3',
             'isActive' => 'sometimes|boolean',
-            'password' => 'required|string|min:8|max:100|confirmed',
+            'password' => PasswordPolicy::rules(),
         ], self::MESSAGES + [
             'userTypeId.required' => 'Elige el tipo de usuario.',
             'locationId.required' => 'Elige la ubicación.',
@@ -317,7 +318,7 @@ class UserAdminController extends Controller
         }
 
         $v = $request->validate([
-            'password' => 'required|string|min:8|max:100|confirmed',
+            'password' => PasswordPolicy::rules(),
         ], self::MESSAGES);
 
         $user->password = Hash::make($v['password']);

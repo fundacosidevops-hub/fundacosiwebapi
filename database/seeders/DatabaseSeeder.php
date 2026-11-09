@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\PasswordPolicy;
+use Illuminate\Support\Str;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -31,6 +33,15 @@ class DatabaseSeeder extends Seeder
             NcfSequencesSeeder::class,
             UserLocationsSeeder::class,
         ]);
+        // Contraseña del SuperAdmin inicial: SEED_SUPERADMIN_PASSWORD del .env o,
+        // si no está, una aleatoria que se muestra una sola vez en consola.
+        $password = (string) env('SEED_SUPERADMIN_PASSWORD', '');
+        if ($password === '' || PasswordPolicy::isWeak($password)) {
+            $password = Str::password(16);
+            $this->command?->warn('Contraseña del SuperAdmin inicial (test@fundacosixxi.com): ' . $password);
+            $this->command?->warn('Guárdala ahora: no se vuelve a mostrar.');
+        }
+
         User::factory()->create([
             'name' => 'User',
             'last_name' => 'Test',
@@ -42,7 +53,7 @@ class DatabaseSeeder extends Seeder
             'user_type_id' => 1,
             'document_type_id' => 1,
             'insurance_id' => 1,
-            'password' => bcrypt('123456'),
+            'password' => bcrypt($password),
         ])->assignRole('SuperAdmin');
     }
 }

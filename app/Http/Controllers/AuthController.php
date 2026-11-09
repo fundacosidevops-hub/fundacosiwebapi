@@ -8,6 +8,8 @@ use App\Models\DocumentType;
 use App\Models\MedicalCatalogServices;
 use App\Models\Positions;
 use App\Models\User;
+use App\Support\PasswordPolicy;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -43,23 +45,63 @@ class AuthController extends Controller
     )]
     public function login(Request $request)
     {
-        $credentials = $request->only('email', 'password');
+        $credentials = [
+            'email' => (string) $request->input('email', ''),
+            'password' => (string) $request->input('password', ''),
+        ];
 
-        if (! $token = Auth::guard('api')->attempt($credentials)) {
+        // Límite de intentos: 5 por minuto por correo+IP y 20 por minuto por IP.
+        $userKey = 'login:' . Str::lower($credentials['email']) . '|' . $request->ip();
+        $ipKey = 'login-ip:' . $request->ip();
+        foreach ([[$userKey, 5], [$ipKey, 20]] as [$key, $max]) {
+            if (RateLimiter::tooManyAttempts($key, $max)) {
+                $seconds = RateLimiter::availableIn($key);
+
+                return response()->json([
+                    'error' => "Demasiados intentos. Espera {$seconds} segundos e inténtalo de nuevo.",
+                ], 429)->header('Retry-After', (string) $seconds);
+            }
+        }
+
+        if ($credentials['email'] === '' || $credentials['password'] === ''
+            || ! $token = Auth::guard('api')->attempt($credentials)) {
+            RateLimiter::hit($userKey, 60);
+            RateLimiter::hit($ipKey, 60);
+
             return response()->json(['error' => 'Credenciales inválidas'], 401);
         }
 
+        $user = Auth::guard('api')->user();
+
         // Un usuario desactivado no puede entrar aunque la contraseña sea correcta.
-        if (Auth::guard('api')->user()?->is_active === false) {
+        if ($user?->is_active === false) {
             Auth::guard('api')->invalidate();
 
             return response()->json(['error' => 'Tu usuario está desactivado. Habla con un administrador.'], 403);
+        }
+
+        // Los pacientes no usan el sistema: su registro no sirve para entrar.
+        if ((int) $user?->user_type_id === 2) {
+            Auth::guard('api')->invalidate();
+            RateLimiter::hit($userKey, 60);
+
+            return response()->json(['error' => 'Credenciales inválidas'], 401);
+        }
+
+        RateLimiter::clear($userKey);
+
+        // Contraseña débil o por defecto: entra, pero solo puede cambiarla.
+        $mustChange = PasswordPolicy::isWeak($credentials['password']);
+        if ($mustChange) {
+            Auth::guard('api')->invalidate();
+            $token = Auth::guard('api')->claims(['pwd_change' => true])->login($user);
         }
 
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
             'expires_in' => JWTAuth::factory()->getTTL() * 60,
+            'must_change_password' => $mustChange,
         ]);
     }
     #[OA\Post(
@@ -88,6 +130,16 @@ class AuthController extends Controller
     )]
     public function saveUser(Request $request)
     {
+        // Solo administradores crean o editan empleados (antes cualquier
+        // usuario podía crear un SuperAdmin desde aquí).
+        $actor = $request->user();
+        if (! $actor || ! $actor->hasAnyRole(['SuperAdmin', 'Administrador'])) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Solo los administradores pueden gestionar usuarios.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:50',
             'roles' => 'required|string',
@@ -105,10 +157,33 @@ class AuthController extends Controller
             'is_active' => 1,
         ];
 
+        // El rol debe existir; Paciente no es un rol de empleado y solo un
+        // SuperAdmin puede dar (o quitar) el rol SuperAdmin.
+        $role = Role::where('name', $validated['roles'])->where('guard_name', 'api')->first();
+        if (! $role || $role->name === 'Paciente') {
+            return response()->json(['isSuccess' => false, 'message' => 'Rol no válido.'], 422);
+        }
+
         $user = User::where('email', $validated['email'])->first();
 
+        $touchesSuperAdmin = $role->name === 'SuperAdmin' || ($user && $user->hasRole('SuperAdmin'));
+        if ($touchesSuperAdmin && ! $actor->hasRole('SuperAdmin')) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Solo un SuperAdmin puede asignar o modificar a un SuperAdmin.',
+            ], 403);
+        }
+        if ($user && (int) $user->user_type_id === 2) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Ese correo pertenece a un paciente.',
+            ], 422);
+        }
+
         if (! $user) {
-            $data['password'] = Hash::make('TempPass123');
+            // Sin contraseña conocida: el administrador le asigna una en
+            // Ajustes → Usuarios del sistema → Cambiar contraseña.
+            $data['password'] = Hash::make(PasswordPolicy::random());
         }
 
         $user = User::updateOrCreate(
@@ -116,7 +191,7 @@ class AuthController extends Controller
             $data
         );
 
-        $user->syncRoles([$validated['roles']]);
+        $user->syncRoles([$role->name]);
 
         return response()->json([
             'message' => $user->wasRecentlyCreated
@@ -300,7 +375,8 @@ class AuthController extends Controller
             ->first();
 
         if (! $user) {
-            $data['password'] = Hash::make('TempPass123');
+            // Los pacientes no inician sesión: contraseña aleatoria, nadie la conoce.
+            $data['password'] = Hash::make(PasswordPolicy::random());
         }
         $user = User::updateOrCreate(
             [
@@ -419,12 +495,12 @@ class AuthController extends Controller
         $validated = $request->validate(
             [
                 'currentPassword' => 'required|string',
-                'password' => 'required|string|min:8|confirmed',
+                'password' => PasswordPolicy::rules(),
             ],
             [
                 'currentPassword.required' => 'La contraseña actual es requerida.',
                 'password.required' => 'La nueva contraseña es requerida.',
-                'password.min' => 'La nueva contraseña debe tener al menos 8 caracteres.',
+                'password.min' => 'La nueva contraseña debe tener al menos ' . PasswordPolicy::MIN . ' caracteres.',
                 'password.confirmed' => 'La confirmación no coincide con la nueva contraseña.',
             ]
         );
@@ -439,12 +515,31 @@ class AuthController extends Controller
             ], 422);
         }
 
+        if (hash_equals((string) $validated['currentPassword'], (string) $validated['password'])) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'La nueva contraseña debe ser distinta a la actual.',
+                'errors' => ['password' => ['La nueva contraseña debe ser distinta a la actual.']],
+            ], 422);
+        }
+
         $user->password = Hash::make($validated['password']);
         $user->save();
+
+        // Token nuevo sin la marca de «cambiar contraseña»; el anterior deja de servir.
+        try {
+            auth('api')->invalidate();
+        } catch (\Throwable) {
+            // Sin token que invalidar.
+        }
+        $token = auth('api')->claims(['pwd_change' => false])->login($user);
 
         return response()->json([
             'isSuccess' => true,
             'message' => 'Contraseña actualizada correctamente.',
+            'access_token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => JWTAuth::factory()->getTTL() * 60,
         ], 200);
     }
 }

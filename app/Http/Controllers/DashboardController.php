@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\BillingAccess;
+use App\Http\Middleware\RequireAccess;
 use App\Services\AccountingService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -56,10 +58,42 @@ class DashboardController extends Controller
             : DB::table('users')->whereIn('id', $ids->filter()->unique()->values())->get(['id', 'name', 'last_name'])
                 ->mapWithKeys(fn ($u) => [$u->id => trim($u->name . ' ' . $u->last_name)]);
 
+        // Montos, cajas y ARS solo para quien trabaja con dinero (Facturación
+        // o Contabilidad). El resto ve conteos de pacientes, turnos y consultas.
+        $canSeeMoney = RequireAccess::allows($request->user(), array_merge(
+            BillingAccess::RULES,
+            ['accounting.view', 'accounting.manage']
+        ));
+        if (! $canSeeMoney) {
+            $k = $this->kpis($inv, $prev, $pay);
+            $countsOnly = fn (array $rows) => array_map(
+                fn ($r) => ['name' => $r['name'], 'invoices' => $r['invoices'], 'gross' => 0],
+                $rows
+            );
+
+            return response()->json([
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'days' => $days,
+                'restricted' => true,
+                'kpis' => [
+                    'invoices' => $k['invoices'] ?? 0,
+                    'invoices_prev' => $k['invoices_prev'] ?? 0,
+                    'patients' => $k['patients'] ?? 0,
+                ],
+                'hours' => $this->hours($inv),
+                'services' => $countsOnly($this->top($inv, 'catalog_services_id', $names('catalog_services', $inv->pluck('catalog_services_id')))),
+                'doctors' => $countsOnly($this->top($inv, 'doctor_id', $people($inv->pluck('doctor_id')))),
+                'queue' => $this->queue($from, $to),
+                'clinical' => $this->clinical($from, $to),
+            ]);
+        }
+
         return response()->json([
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
             'days' => $days,
+            'restricted' => false,
             'kpis' => $this->kpis($inv, $prev, $pay),
             'trend' => $this->trend($inv, $pay, $from, $to, $days),
             'hours' => $this->hours($inv),

@@ -19,7 +19,13 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    // Orígenes permitidos (separados por coma) en CORS_ALLOWED_ORIGINS.
+    // Facturación corre en cada PC en http://localhost:63779. Agrega aquí
+    // el dominio del kiosco y de la pantalla de turnos.
+    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:63779,http://127.0.0.1:63779'
+    ))))),
 
     'allowed_origins_patterns' => [],
 

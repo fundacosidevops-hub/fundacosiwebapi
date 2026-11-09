@@ -1,0 +1,24 @@
+# Protección si el servidor web apunta a la carpeta del proyecto (por ejemplo
+# XAMPP en htdocs) en lugar de a /public: todo se envía a /public, de modo que
+# .env, storage, vendor, config, logs, etc. nunca se sirven directamente.
+# Si el sitio ya apunta a /public, este archivo no se usa.
+
+Options -Indexes
+
+<IfModule mod_authz_core.c>
+    # Archivos ocultos (.env, .git, .htaccess…) y archivos sensibles por nombre.
+    <FilesMatch "^\.|^(composer\.(json|lock)|package(-lock)?\.json|artisan|phpunit\.xml|vite\.config\.js|.*\.(log|sqlite|sql|bak|md))$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Conserva la cabecera Authorization (JWT).
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Todo lo que no esté ya bajo public/ se atiende desde public/.
+    RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>

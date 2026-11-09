@@ -12,54 +12,87 @@ use App\Http\Controllers\CommonController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\UserAdminController;
+use App\Http\Middleware\BillingAccess;
+use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\KioskOrStaff;
+use App\Http\Middleware\RequireAccess;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
 
+    // Acceso a Facturación: permisos billing.* o rol Caja (admins siempre).
+    $billing = RequireAccess::class . BillingAccess::MIDDLEWARE;
+    // Límites por IP para rutas públicas (kiosco y pantalla).
+    $kioskRate = 'throttle:' . (int) config('kiosk.rate_per_minute', 120) . ',1,kiosk';
+    $lookupRate = 'throttle:' . (int) config('kiosk.lookup_per_minute', 20) . ',1,kiosk-lookup';
+
     Route::post('login', [AuthController::class, 'login']);
     Route::get('avatars/{file}', [UserAdminController::class, 'showAvatar']);
-    Route::get('common/patient-info', [CommonController::class, 'getPatientInformation']);
-    Route::post('common/save-ticket', [CommonController::class, 'saveTicket']);
-    Route::get('common/insurance', [CommonController::class, 'getInsurance']);
-    Route::get('common/catalog-services', [CommonController::class, 'getCatalogServices']);
-    Route::get('common/catalog-services-doctor', [CommonController::class, 'getDoctorsByCatalogServices']);
-    Route::get('common/get-ticket-location', [CommonController::class, 'getTicketByLocation']);
 
-    Route::middleware(['auth:api', EnsureUserIsActive::class])->group(function () {
-        /* POST  */
-        Route::post('save-patient', [AuthController::class, 'savePatient']);
-        Route::post('saveUser', [AuthController::class, 'saveUser']);
+    /* KIOSCO Y PANTALLA: clave de kiosco (X-Kiosk-Key) o empleado con sesión */
+    Route::middleware([$kioskRate])->group(function () use ($lookupRate) {
+        Route::get('common/patient-info', [CommonController::class, 'getPatientInformation'])
+            ->middleware([KioskOrStaff::class . ':billing', $lookupRate]);
+        Route::post('common/save-ticket', [CommonController::class, 'saveTicket'])
+            ->middleware(KioskOrStaff::class . ':billing');
+        Route::get('common/insurance', [CommonController::class, 'getInsurance'])
+            ->middleware(KioskOrStaff::class);
+        Route::get('common/catalog-services', [CommonController::class, 'getCatalogServices'])
+            ->middleware(KioskOrStaff::class);
+        Route::get('common/catalog-services-doctor', [CommonController::class, 'getDoctorsByCatalogServices'])
+            ->middleware(KioskOrStaff::class);
+        Route::get('common/get-ticket-location', [CommonController::class, 'getTicketByLocation'])
+            ->middleware(KioskOrStaff::class);
+    });
+
+    Route::middleware(['auth:api', EnsureUserIsActive::class, EnsurePasswordIsChanged::class])->group(function () use ($billing) {
+        /* SESIÓN Y PERFIL: cualquier usuario con sesión */
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('change-password', [AuthController::class, 'changePassword']);
-        Route::post('billing/save-bill', [BillingController::class, 'save']);
-        Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
-        /* INICIO (tablero): cualquier usuario con sesión */
+        Route::get('profile', [AuthController::class, 'profile']);
+        /* INICIO (tablero): cualquier usuario; los montos solo con acceso (ver controlador) */
         Route::get('dashboard', [DashboardController::class, 'summary']);
+        /* Catálogos de referencia (sin datos personales) */
+        Route::get('positions', [AuthController::class, 'positions']);
+        Route::get('common/get-user-locations', [CommonController::class, 'getUserLocations']);
+        Route::get('common/get-nationalities', [CommonController::class, 'getNationalities']);
+        Route::get('common/get-relationship-types', [CommonController::class, 'getRelationshipTypes']);
+
+        /* EMPLEADOS (alta antigua): solo administradores (se valida también en el controlador) */
+        Route::post('saveUser', [AuthController::class, 'saveUser'])
+            ->middleware(RequireAccess::class . ':role:SuperAdmin,role:Administrador');
+        Route::get('roles', [AuthController::class, 'roles'])
+            ->middleware([$billing]);
+
+        /* FACTURACIÓN, CAJA Y TURNOS: solo quien tiene acceso a Facturación */
+        Route::middleware([$billing])->group(function () {
+            Route::post('save-patient', [AuthController::class, 'savePatient']);
+            Route::post('billing/save-bill', [BillingController::class, 'save']);
+            Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
+            Route::post('common/skip-turn', [CommonController::class, 'skipTurn']);
+            Route::post('common/update-assistances-doctor', [CommonController::class, 'updateAssistancesDoctor']);
+            Route::post('common/update-turn-status', [CommonController::class, 'updateTurnStatus']);
+            Route::post('common/update-turn-cashier', [CommonController::class, 'updateTurnCashier']);
+            Route::post('common/update-relationships', [CommonController::class, 'updateRelationships']);
+            Route::post('common/remove-relationship', [CommonController::class, 'removeRelationship']);
+            Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);
+            Route::get('auth/get-all-system-user', [AuthController::class, 'getAllSystemUser']);
+            Route::get('billing/payment-methods', [BillingController::class, 'getPaymentMethods']);
+            Route::get('billing/get-all-cashier-list', [BillingController::class, 'getAllCashierList']);
+            Route::get('common/medical-studies', [CommonController::class, 'getStudiesByInsurance']);
+            Route::get('common/call-next-queue', [CommonController::class, 'callNextQueue']);
+            Route::get('common/get-all-doctors', [CommonController::class, 'getAllDoctors']);
+            Route::get('common/get-all-tickets-location', [CommonController::class, 'getAllTicketsByLocation']);
+            Route::get('cash/current', [CashSessionController::class, 'current']);
+            Route::post('cash/open', [CashSessionController::class, 'open']);
+            Route::post('cash/close', [CashSessionController::class, 'close']);
+        });
+
+        /* HISTORIAL DE FACTURAS (permiso billing.view o accounting.view, ver controlador) */
         Route::get('billing/invoices', [InvoiceController::class, 'index']);
         Route::get('billing/invoices/cashiers', [InvoiceController::class, 'cashiers']);
         Route::get('billing/invoices/{id}', [InvoiceController::class, 'show'])->whereNumber('id');
-        Route::post('common/skip-turn', [CommonController::class, 'skipTurn']);
-        Route::post('common/update-assistances-doctor', [CommonController::class, 'updateAssistancesDoctor']);
-        Route::post('common/update-turn-status', [CommonController::class, 'updateTurnStatus']);
-        Route::post('common/update-turn-cashier', [CommonController::class, 'updateTurnCashier']);
-        Route::post('common/update-relationships', [CommonController::class, 'updateRelationships']);
-        Route::post('common/remove-relationship', [CommonController::class, 'removeRelationship']);
-        /* GET */
-        Route::get('positions', [AuthController::class, 'positions']);
-        Route::get('roles', [AuthController::class, 'roles']);
-        Route::get('profile', [AuthController::class, 'profile']);
-        Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);
-        Route::get('auth/get-all-system-user', [AuthController::class, 'getAllSystemUser']);
-        Route::get('billing/payment-methods', [BillingController::class, 'getPaymentMethods']);
-        Route::get('billing/get-all-cashier-list', [BillingController::class, 'getAllCashierList']);
-        Route::get('common/medical-studies', [CommonController::class, 'getStudiesByInsurance']);
-        Route::get('common/call-next-queue', [CommonController::class, 'callNextQueue']);
-        Route::get('common/get-user-locations', [CommonController::class, 'getUserLocations']);
-        Route::get('common/get-nationalities', [CommonController::class, 'getNationalities']);
-        Route::get('common/get-all-doctors', [CommonController::class, 'getAllDoctors']);
-        Route::get('common/get-all-tickets-location', [CommonController::class, 'getAllTicketsByLocation']);
-        Route::get('common/get-relationship-types', [CommonController::class, 'getRelationshipTypes']);
 
         /* USUARIOS: mi cuenta y usuarios del sistema (Ajustes) */
         Route::get('users/catalogs', [UserAdminController::class, 'catalogs']);
@@ -76,10 +109,8 @@ Route::prefix('v1')->group(function () {
         Route::post('users/{id}/avatar', [UserAdminController::class, 'uploadAvatar'])->whereNumber('id');
         Route::delete('users/{id}/avatar', [UserAdminController::class, 'removeAvatar'])->whereNumber('id');
 
-        /* CAJA (cuadre por cajero) */
-        Route::get('cash/current', [CashSessionController::class, 'current']);
-        Route::post('cash/open', [CashSessionController::class, 'open']);
-        Route::post('cash/close', [CashSessionController::class, 'close']);
+        /* CAJA (cuadre): abrir/cerrar la propia está arriba con Facturación;
+           cerrar la de otro y ver cuadres lo valida el controlador (accounting.*) */
         Route::post('cash/sessions/{id}/close', [CashSessionController::class, 'close']);
         Route::get('cash/sessions', [CashSessionController::class, 'index']);
         Route::get('cash/sessions/{id}', [CashSessionController::class, 'show']);
