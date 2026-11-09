@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Accounting\CashSession;
 use App\Models\Payments;
 use App\Services\AccountingService;
+use App\Services\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Cuadre de caja. Cada cajero abre su caja con un fondo, cobra, y al final
@@ -45,6 +47,9 @@ class CashSessionController extends Controller
             'opening_amount' => $v['opening_amount'],
             'notes' => $v['notes'] ?? null,
         ]);
+        AuditLog::record('cash.opened', 'cash_session', $session->id,
+            sprintf('Abrió la caja #%d con fondo de %s', $session->id, number_format((float) $session->opening_amount, 2)),
+            null, ['opening_amount' => (float) $session->opening_amount]);
 
         return response()->json($this->withTotals($session), 201);
     }
@@ -87,6 +92,15 @@ class CashSessionController extends Controller
                 ]);
                 app(AccountingService::class)->postCashDifference($session->fresh('user'));
             });
+            $s = $session->fresh('user');
+            AuditLog::record('cash.closed', 'cash_session', $s->id, sprintf(
+                'Cerró la caja #%d%s: esperado %s, contado %s, diferencia %s',
+                $s->id,
+                (int) $s->user_id !== (int) auth()->id() ? ' de ' . trim(($s->user?->name ?? '') . ' ' . ($s->user?->last_name ?? '')) : '',
+                number_format((float) $s->expected_cash, 2),
+                number_format((float) $s->counted_cash, 2),
+                number_format((float) $s->difference, 2)
+            ), null, ['expected' => (float) $s->expected_cash, 'counted' => (float) $s->counted_cash, 'difference' => (float) $s->difference]);
 
             return response()->json($this->withTotals($session->fresh()));
         });
@@ -154,12 +168,43 @@ class CashSessionController extends Controller
             }
         }
 
+        // Devoluciones por anulación (notas de crédito) hechas desde esta caja:
+        // el efectivo devuelto sale de la caja y se resta del esperado.
+        $refunds = [];
+        $cashRefunds = 0.0;
+        if (Schema::hasTable('in_credit_notes')) {
+            $refunds = DB::table('in_credit_notes as n')
+                ->join('in_invoices as i', 'i.id', '=', 'n.invoice_id')
+                ->leftJoin('in_payment_methods as m', 'm.id', '=', 'n.refund_method_id')
+                ->where('n.cash_session_id', $session->id)
+                ->where('n.refund_amount', '>', 0)
+                ->orderBy('n.refunded_at')
+                ->get(['n.id', 'n.ncf_number', 'n.refund_amount', 'n.refund_method_id', 'n.refunded_at', 'i.ncf_number as invoice_ncf', 'm.name as method'])
+                ->map(function ($r) use ($svc, $cashAccount, &$cashRefunds) {
+                    $isCash = $r->refund_method_id && $svc->paymentMethodAccount((int) $r->refund_method_id) === $cashAccount;
+                    if ($isCash) {
+                        $cashRefunds += (float) $r->refund_amount;
+                    }
+
+                    return [
+                        'credit_note' => $r->ncf_number,
+                        'invoice_ncf' => $r->invoice_ncf,
+                        'amount' => round((float) $r->refund_amount, 2),
+                        'method' => $r->method,
+                        'is_cash' => $isCash,
+                        'refunded_at' => $r->refunded_at,
+                    ];
+                })->values()->all();
+        }
+
         return [
             'by_method' => $byMethod,
             'count' => $count,
             'cash_sales' => round($cash, 2),
             'total_sales' => round(array_sum(array_column($byMethod, 'total')), 2),
-            'expected_cash' => round((float) $session->opening_amount + $cash, 2),
+            'refunds' => $refunds,
+            'cash_refunds' => round($cashRefunds, 2),
+            'expected_cash' => round((float) $session->opening_amount + $cash - $cashRefunds, 2),
         ];
     }
 

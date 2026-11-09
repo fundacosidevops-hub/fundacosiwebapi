@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Accounting\CashSession;
 use App\Models\Accounting\JournalEntry;
+use App\Models\CreditNote;
 use App\Models\Invoices;
 use App\Models\Payments;
 use App\Models\User;
 use App\Services\AccountingService;
+use App\Services\AuditLog;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -27,7 +29,7 @@ class InvoiceController extends Controller
         $request->validate([
             'from' => 'nullable|date_format:Y-m-d',
             'to' => 'nullable|date_format:Y-m-d',
-            'status' => 'nullable|in:all,paid,pending',
+            'status' => 'nullable|in:all,paid,pending,annulled',
             'type' => 'nullable|in:all,insured,private',
             'cashier' => 'nullable|integer',
             'insurance_id' => 'nullable|integer',
@@ -39,11 +41,15 @@ class InvoiceController extends Controller
 
         $q = $this->filtered($request);
 
-        // Totales del filtro completo (no solo de la página).
-        $totals = (clone $q)->toBase()->selectRaw(
+        // Totales del filtro completo (no solo de la página). Las anuladas no
+        // suman: se cuentan aparte.
+        $annulled = $this->annulledStatusId();
+        $valid = (clone $q)->when($annulled, fn ($w) => $w->where(fn ($x) => $x->where('status_id', '!=', $annulled)->orWhereNull('status_id')));
+        $totals = (clone $valid)->toBase()->selectRaw(
             'COUNT(*) as count, COALESCE(SUM(subtotal),0) as subtotal, COALESCE(SUM(discount),0) as discount, COALESCE(SUM(total),0) as total'
         )->first();
-        $paid = (float) Payments::whereIn('invoices_id', (clone $q)->select('in_invoices.id'))->sum('amount');
+        $paid = (float) Payments::whereIn('invoices_id', (clone $valid)->select('in_invoices.id'))->sum('amount');
+        $annulledCount = $annulled ? (clone $q)->where('status_id', $annulled)->count() : 0;
 
         $with = [
             'patient:id,name,last_name,document_number',
@@ -78,6 +84,7 @@ class InvoiceController extends Controller
                 'total' => round((float) $totals->total, 2),
                 'paid' => round($paid, 2),
                 'pending' => round(max(0, (float) $totals->total - $paid), 2),
+                'annulled' => $annulledCount,
             ],
         ]);
     }
@@ -106,14 +113,17 @@ class InvoiceController extends Controller
 
         $entries = [];
         if (AccountingService::enabled()) {
+            $noteId = CreditNoteController::enabled() ? CreditNote::where('invoice_id', $i->id)->value('id') : null;
+            $kinds = ['invoice' => 'Factura', 'payment' => 'Cobro', 'credit_note' => 'Nota de crédito', 'refund' => 'Devolución'];
             $entries = JournalEntry::where(fn ($w) => $w->where('source_type', 'invoice')->where('source_id', $i->id))
                 ->orWhere(fn ($w) => $w->where('source_type', 'payment')->whereIn('source_id', $i->payments->pluck('id')))
+                ->when($noteId, fn ($q) => $q->orWhere(fn ($w) => $w->whereIn('source_type', ['credit_note', 'refund'])->where('source_id', $noteId)))
                 ->orderBy('id')->get(['id', 'number', 'date', 'source_type', 'total', 'status'])
                 ->map(fn ($e) => [
                     'id' => $e->id,
                     'number' => $e->number,
                     'date' => $e->date?->format('Y-m-d'),
-                    'kind' => $e->source_type === 'invoice' ? 'Factura' : 'Cobro',
+                    'kind' => ($kinds[$e->source_type] ?? $e->source_type) . ($e->status === 'reversed' ? ' (reversado)' : ''),
                     'total' => (float) $e->total,
                 ]);
         }
@@ -156,6 +166,11 @@ class InvoiceController extends Controller
             ]),
             'entries' => $entries,
             'ars_claim' => $claim ? ['id' => $claim->id, 'number' => $claim->number, 'status' => $claim->status] : null,
+            'cancel_reason' => $i->cancel_reason,
+            'credit_note' => CreditNoteController::enabled()
+                ? CreditNoteController::noteRow(CreditNote::with(['refundMethod:id,name', 'creator:id,name,last_name'])->where('invoice_id', $i->id)->first())
+                : null,
+            'history' => $this->history($i),
         ]);
     }
 
@@ -175,6 +190,7 @@ class InvoiceController extends Controller
     private function filtered(Request $request): Builder
     {
         $q = Invoices::query();
+        $annulled = $this->annulledStatusId();
         if ($from = $request->input('from')) {
             $q->where('created_at', '>=', $from . ' 00:00:00');
         }
@@ -185,7 +201,9 @@ class InvoiceController extends Controller
         if ($status === 'paid') {
             $q->where('status_id', self::PAID);
         } elseif ($status === 'pending') {
-            $q->where(fn ($w) => $w->where('status_id', '!=', self::PAID)->orWhereNull('status_id'));
+            $q->where(fn ($w) => $w->whereNotIn('status_id', array_filter([self::PAID, $annulled]))->orWhereNull('status_id'));
+        } elseif ($status === 'annulled') {
+            $q->where('status_id', $annulled ?: -1);
         }
         $type = $request->input('type', 'all');
         if ($type !== 'all') {
@@ -234,11 +252,35 @@ class InvoiceController extends Controller
             'coverage' => (float) $i->discount,
             'total' => (float) $i->total,
             'paid' => (int) $i->status_id === self::PAID,
+            'annulled' => $this->annulledStatusId() > 0 && (int) $i->status_id === $this->annulledStatusId(),
             'paid_amount' => $paidAmount,
             'payment_method' => $last?->paymentMethod?->name,
             'paid_at' => $last?->paid_at,
             'cashier' => trim(($i->creator?->name ?? '') . ' ' . ($i->creator?->last_name ?? '')),
         ];
+    }
+
+    /** Bitácora de la factura (creación, cobro, anulación…). */
+    private function history(Invoices $i): array
+    {
+        if (! AuditLog::enabled()) {
+            return [];
+        }
+        $paymentIds = $i->payments->pluck('id')->all();
+
+        return DB::table('sys_audit_logs')
+            ->where(fn ($w) => $w->where('entity_type', 'invoice')->where('entity_id', $i->id))
+            ->when($paymentIds, fn ($q) => $q->orWhere(fn ($w) => $w->where('entity_type', 'payment')->whereIn('entity_id', $paymentIds)))
+            ->orderBy('id')->limit(50)
+            ->get(['action', 'description', 'user_name', 'created_at'])
+            ->map(fn ($r) => (array) $r)->all();
+    }
+
+    private ?int $annulledId = null;
+
+    private function annulledStatusId(): int
+    {
+        return $this->annulledId ??= (int) DB::table('in_invoice_statuses')->where('name', 'Anulada')->value('id');
     }
 
     private function authorizeView(): void

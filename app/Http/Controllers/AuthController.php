@@ -8,6 +8,7 @@ use App\Models\DocumentType;
 use App\Models\MedicalCatalogServices;
 use App\Models\Positions;
 use App\Models\User;
+use App\Services\AuditLog;
 use App\Support\PasswordPolicy;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Request;
@@ -58,6 +59,8 @@ class AuthController extends Controller
                 ? RateLimiter::availableIn($key)
                 : null);
             if ($seconds !== null) {
+                AuditLog::record('auth.blocked', null, null, 'Login bloqueado por demasiados intentos: ' . mb_substr($credentials['email'], 0, 120));
+
                 return response()->json([
                     'error' => "Demasiados intentos. Espera {$seconds} segundos e inténtalo de nuevo.",
                 ], 429)->header('Retry-After', (string) $seconds);
@@ -70,6 +73,7 @@ class AuthController extends Controller
                 RateLimiter::hit($userKey, 60);
                 RateLimiter::hit($ipKey, 60);
             });
+            AuditLog::record('auth.login_failed', null, null, 'Intento de entrada fallido con el correo ' . mb_substr($credentials['email'], 0, 120));
 
             return response()->json(['error' => 'Credenciales inválidas'], 401);
         }
@@ -99,6 +103,9 @@ class AuthController extends Controller
             // Se reemplaza por un token marcado; el primero nunca sale del servidor.
             $token = Auth::guard('api')->claims(['pwd_change' => true])->login($user);
         }
+
+        AuditLog::record('auth.login', 'user', $user->id,
+            'Inició sesión' . ($mustChange ? ' (con contraseña débil: debe cambiarla)' : ''), null, null, $user);
 
         return response()->json([
             'access_token' => $token,
@@ -213,6 +220,8 @@ class AuthController extends Controller
         );
 
         $user->syncRoles([$role->name]);
+        AuditLog::record($user->wasRecentlyCreated ? 'user.created' : 'user.updated', 'user', $user->id,
+            ($user->wasRecentlyCreated ? 'Creó' : 'Editó') . " el empleado {$user->name} ({$user->email}) con rol {$role->name}");
 
         return response()->json([
             'message' => $user->wasRecentlyCreated
@@ -546,6 +555,7 @@ class AuthController extends Controller
 
         $user->password = Hash::make($validated['password']);
         $user->save();
+        AuditLog::record('auth.password_changed', 'user', $user->id, 'Cambió su contraseña');
 
         // Token nuevo sin la marca de «cambiar contraseña»; el anterior deja de servir.
         try {

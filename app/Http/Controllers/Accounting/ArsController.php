@@ -9,6 +9,7 @@ use App\Models\Accounting\ArsClaimItem;
 use App\Models\Accounting\ArsPayment;
 use App\Models\Invoices;
 use App\Services\AccountingService;
+use App\Services\AuditLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,10 +27,19 @@ class ArsController extends Controller
     /** Facturas aseguradas con cobertura. */
     private function insuredInvoices()
     {
+        // Las anuladas (nota de crédito) ya no se le cobran a la ARS.
+        $annulled = $this->annulledStatusId();
+
         return Invoices::query()
             ->where('billing_type', 'insured')
             ->whereNotNull('insurance_id')
-            ->where('discount', '>', 0);
+            ->where('discount', '>', 0)
+            ->when($annulled, fn ($q) => $q->where(fn ($w) => $w->where('status_id', '!=', $annulled)->orWhereNull('status_id')));
+    }
+
+    private function annulledStatusId(): int
+    {
+        return (int) DB::table('in_invoice_statuses')->where('name', 'Anulada')->value('id');
     }
 
     /** Antigüedad de saldos por ARS (sin reclamar + reclamado pendiente). */
@@ -45,6 +55,7 @@ class ArsController extends Controller
             ->whereNotNull('f.insurance_id')
             ->where('f.discount', '>', 0)
             ->where('f.created_at', '<=', $date)
+            ->when($this->annulledStatusId(), fn ($q, $a) => $q->where(fn ($w) => $w->where('f.status_id', '!=', $a)->orWhereNull('f.status_id')))
             ->get(['f.id', 'f.insurance_id', 'i.description as insurance', 'f.created_at', 'f.discount',
                 'ci.id as item_id', 'ci.amount_paid', 'ci.amount_glosa']);
 
@@ -196,6 +207,8 @@ class ArsController extends Controller
             return $claim;
         });
 
+        AuditLog::record('ars.claim_created', 'ars_claim', $claim->id, sprintf('Creó la reclamación %s por %s', $claim->number, number_format((float) $claim->total_claimed, 2)));
+
         return $this->showClaim($claim->id);
     }
 
@@ -221,6 +234,8 @@ class ArsController extends Controller
         }
         $claim->delete();
 
+        AuditLog::record('ars.claim_deleted', 'ars_claim', $id, "Eliminó la reclamación {$claim->number} (en preparación)");
+
         return response()->json(['isSuccess' => true]);
     }
 
@@ -236,6 +251,7 @@ class ArsController extends Controller
             return response()->json(['isSuccess' => false, 'message' => 'La reclamación no tiene facturas.'], 422);
         }
         $claim->update(['status' => 'sent', 'sent_at' => now(), 'ars_reference' => $v['ars_reference'] ?? $claim->ars_reference]);
+        AuditLog::record('ars.claim_sent', 'ars_claim', $claim->id, "Marcó como enviada la reclamación {$claim->number}");
 
         return $this->showClaim($claim->id);
     }
@@ -320,6 +336,8 @@ class ArsController extends Controller
                 $this->refreshTotals($claim);
                 app(AccountingService::class)->postArsPayment($payment);
             });
+            AuditLog::record('ars.payment', 'ars_claim', $claim->id, sprintf(
+                'Registró pago de ARS en %s: pagado %s, glosado %s', $claim->number, number_format((float) $paid, 2), number_format((float) $glosa, 2)));
 
             return $this->showClaim($claim->id);
         });

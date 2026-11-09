@@ -9,6 +9,7 @@ use App\Models\Accounting\AccountMapping;
 use App\Models\Accounting\CashSession;
 use App\Models\Accounting\JournalEntry;
 use App\Services\AccountingService;
+use App\Services\AuditLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -154,6 +155,8 @@ class AccountingController extends Controller
             'description' => $v['description'] ?? null,
         ]);
 
+        AuditLog::record('accounting.account_created', 'account', $account->id, "Creó la cuenta {$account->code} {$account->name}");
+
         return response()->json($account, 201);
     }
 
@@ -172,6 +175,9 @@ class AccountingController extends Controller
             }
         }
         $account->update($v);
+
+        AuditLog::record('accounting.account_updated', 'account', $account->id, "Editó la cuenta {$account->code} {$account->name}"
+            . ($account->wasChanged('is_active') ? ($account->is_active ? ' (activada)' : ' (desactivada)') : ''));
 
         return response()->json($account);
     }
@@ -206,6 +212,8 @@ class AccountingController extends Controller
                 AccountMapping::where('key', $m['key'])->update(['account_id' => $m['account_id']]);
             }
         });
+
+        AuditLog::record('accounting.mappings_updated', 'settings', null, 'Cambió las cuentas de los asientos automáticos', null, ['mappings' => $request->input('mappings')]);
 
         return $this->mappings();
     }
@@ -248,6 +256,9 @@ class AccountingController extends Controller
             'closed_at' => $status === 'closed' ? now() : null,
             'closed_by' => $status === 'closed' ? auth()->id() : null,
         ]);
+
+        AuditLog::record('accounting.period_' . $status, 'period', null,
+            sprintf('%s el período %02d/%d', $status === 'closed' ? 'Cerró' : 'Reabrió', $month, $year));
 
         return response()->json($period);
     }
@@ -305,12 +316,18 @@ class AccountingController extends Controller
             'lines.*.insurance_id' => 'nullable|integer|exists:insurances,id',
         ]);
 
-        return $this->attempt(fn () => response()->json(app(AccountingService::class)->post([
-            'date' => $v['date'],
-            'description' => $v['description'],
-            'source_type' => 'manual',
-            'lines' => $v['lines'],
-        ])->load('lines.account:id,code,name'), 201));
+        return $this->attempt(function () use ($v) {
+            $entry = app(AccountingService::class)->post([
+                'date' => $v['date'],
+                'description' => $v['description'],
+                'source_type' => 'manual',
+                'lines' => $v['lines'],
+            ]);
+            AuditLog::record('accounting.entry_created', 'journal_entry', $entry->id,
+                sprintf('Registró el asiento manual %s por %s: %s', $entry->number, number_format((float) $entry->total, 2), $v['description']));
+
+            return response()->json($entry->load('lines.account:id,code,name'), 201);
+        });
     }
 
     public function reverseEntry(Request $request, int $id)
@@ -319,9 +336,13 @@ class AccountingController extends Controller
         $v = $request->validate(['date' => 'nullable|date', 'reason' => 'nullable|string|max:150']);
         $entry = JournalEntry::with('lines')->findOrFail($id);
 
-        return $this->attempt(fn () => response()->json(
-            app(AccountingService::class)->reverse($entry, $v['date'] ?? now()->toDateString(), $v['reason'] ?? null)
-        ));
+        return $this->attempt(function () use ($entry, $v) {
+            $reversal = app(AccountingService::class)->reverse($entry, $v['date'] ?? now()->toDateString(), $v['reason'] ?? null);
+            AuditLog::record('accounting.entry_reversed', 'journal_entry', $entry->id,
+                "Reversó el asiento {$entry->number} con el {$reversal->number}" . (! empty($v['reason']) ? ": {$v['reason']}" : ''));
+
+            return response()->json($reversal);
+        });
     }
 
     // ------------------------------------------------------------------

@@ -12,6 +12,7 @@ use App\Models\Positions;
 use App\Models\User;
 use App\Models\UserLocations;
 use App\Models\UserType;
+use App\Services\AuditLog;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -243,6 +244,13 @@ class UserAdminController extends Controller
             return $user;
         });
 
+        AuditLog::record('user.created', 'user', $user->id, sprintf(
+            'Creó el usuario %s (%s) con rol %s',
+            trim($user->name . ' ' . $user->last_name),
+            $user->email,
+            $user->roles()->pluck('name')->first() ?? 'sin rol'
+        ));
+
         return response()->json([
             'isSuccess' => true,
             'message' => 'Usuario creado: ' . trim($user->name . ' ' . $user->last_name) . '. Ya puede entrar con su correo y la contraseña inicial.',
@@ -299,6 +307,14 @@ class UserAdminController extends Controller
             }
         });
 
+        $fresh = $user->fresh(['position']);
+        AuditLog::record('user.updated', 'user', $user->id, sprintf(
+            'Editó el usuario %s: rol %s, posición %s',
+            trim($fresh->name . ' ' . $fresh->last_name),
+            $fresh->roles()->pluck('name')->first() ?? 'sin rol',
+            $fresh->position?->description ?? '—'
+        ));
+
         return response()->json([
             'isSuccess' => true,
             'message' => 'Usuario actualizado.',
@@ -323,6 +339,7 @@ class UserAdminController extends Controller
 
         $user->password = Hash::make($v['password']);
         $user->save();
+        AuditLog::record('user.password_reset', 'user', $user->id, 'Asignó una contraseña nueva a ' . trim($user->name . ' ' . $user->last_name));
 
         return response()->json([
             'isSuccess' => true,
@@ -347,6 +364,8 @@ class UserAdminController extends Controller
         $user->is_active = $v['active'];
         $user->save();
         $name = trim($user->name . ' ' . $user->last_name);
+        AuditLog::record($v['active'] ? 'user.activated' : 'user.deactivated', 'user', $user->id,
+            ($v['active'] ? 'Activó' : 'Desactivó') . " al usuario {$name}");
 
         return response()->json([
             'isSuccess' => true,

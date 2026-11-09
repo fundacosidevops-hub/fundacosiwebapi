@@ -330,6 +330,132 @@ class AccountingService
         ]);
     }
 
+    /**
+     * Asiento de una nota de crédito (anulación total): invierte el asiento de
+     * la factura. Si la factura no tenía asiento, se arma con los mismos
+     * criterios que postInvoice() pero al revés. El asiento original queda
+     * marcado como «reversed».
+     */
+    public function postCreditNote(\App\Models\CreditNote $note, Invoices $invoice): ?JournalEntry
+    {
+        if (! self::enabled()) {
+            Log::warning('Contabilidad sin migrar: nota de crédito sin asiento', ['credit_note' => $note->id]);
+
+            return null;
+        }
+
+        $original = JournalEntry::with('lines')->where('source_type', 'invoice')->where('source_id', $invoice->id)->first();
+        $lines = $original
+            ? $original->lines->map(fn ($l) => [
+                'account_id' => $l->account_id,
+                'debit' => $l->credit,
+                'credit' => $l->debit,
+                'description' => $l->description,
+                'insurance_id' => $l->insurance_id,
+                'patient_id' => $l->patient_id,
+                'catalog_services_id' => $l->catalog_services_id,
+                'payment_method_id' => $l->payment_method_id,
+            ])->all()
+            : $this->invoiceLinesReversed($invoice);
+
+        if (! $lines) {
+            return null;
+        }
+
+        $ncf = $invoice->ncf_number ?? $invoice->invoice_number ?? ('#' . $invoice->id);
+
+        return DB::transaction(function () use ($note, $lines, $original, $ncf) {
+            $entry = $this->post([
+                'date' => optional($note->created_at)->toDateString() ?? now()->toDateString(),
+                'description' => "Nota de crédito {$note->ncf_number} · anula factura {$ncf}",
+                'source_type' => 'credit_note',
+                'source_id' => $note->id,
+                'reversal_of_id' => $original?->id,
+                'created_by' => $note->created_by,
+                'lines' => $lines,
+            ]);
+            $original?->update(['status' => 'reversed']);
+
+            return $entry;
+        });
+    }
+
+    /** Asiento de la devolución al paciente: Dr CxC pacientes / Cr Caja o banco. */
+    public function postRefund(\App\Models\CreditNote $note, Invoices $invoice): ?JournalEntry
+    {
+        if (! self::enabled()) {
+            return null;
+        }
+        $amount = round((float) $note->refund_amount, 2);
+        if ($amount <= 0 || ! $note->refund_method_id) {
+            return null;
+        }
+
+        return $this->post([
+            'date' => optional($note->refunded_at ?? $note->created_at)->toDateString() ?? now()->toDateString(),
+            'description' => "Devolución al paciente · nota de crédito {$note->ncf_number}",
+            'source_type' => 'refund',
+            'source_id' => $note->id,
+            'created_by' => $note->created_by,
+            'lines' => [
+                [
+                    'account_id' => $this->mappedAccount('ar.patients'),
+                    'debit' => $amount,
+                    'patient_id' => $invoice->patient_id,
+                    'description' => 'Devolución por anulación',
+                ],
+                [
+                    'account_id' => $this->paymentMethodAccount((int) $note->refund_method_id),
+                    'credit' => $amount,
+                    'payment_method_id' => $note->refund_method_id,
+                    'patient_id' => $invoice->patient_id,
+                ],
+            ],
+        ]);
+    }
+
+    /** ¿La forma de pago va a la cuenta de caja (efectivo)? */
+    public function isCashMethod(int $paymentMethodId): bool
+    {
+        return $this->paymentMethodAccount($paymentMethodId) === $this->mappedAccount('cash.main');
+    }
+
+    /** Líneas de postInvoice() invertidas (factura sin asiento previo). */
+    private function invoiceLinesReversed(Invoices $invoice): array
+    {
+        $total = round((float) $invoice->total, 2);
+        $coverage = round((float) $invoice->discount, 2);
+        $income = round($total + $coverage, 2);
+        if ($income <= 0) {
+            return [];
+        }
+        $insured = $invoice->billing_type === 'insured' && $invoice->insurance_id;
+        $lines = [[
+            'account_id' => $this->mappedAccount('income.services'),
+            'debit' => $income,
+            'catalog_services_id' => $invoice->catalog_services_id,
+            'patient_id' => $invoice->patient_id,
+            'insurance_id' => $insured ? $invoice->insurance_id : null,
+            'description' => 'Servicios anulados',
+        ], [
+            'account_id' => $this->mappedAccount('ar.patients'),
+            'credit' => $total,
+            'patient_id' => $invoice->patient_id,
+            'description' => 'Parte del paciente',
+        ]];
+        if ($coverage > 0) {
+            $lines[] = [
+                'account_id' => $this->mappedAccount($insured ? 'ar.ars' : 'income.discounts'),
+                'credit' => $coverage,
+                'insurance_id' => $insured ? $invoice->insurance_id : null,
+                'patient_id' => $invoice->patient_id,
+                'description' => $insured ? 'Cobertura del seguro' : 'Descuento',
+            ];
+        }
+
+        return $lines;
+    }
+
     /** Reversa un asiento manual con otro asiento de signos invertidos. */
     public function reverse(JournalEntry $entry, string $date, ?string $reason = null): JournalEntry
     {

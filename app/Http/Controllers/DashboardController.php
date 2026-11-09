@@ -114,17 +114,25 @@ class DashboardController extends Controller
 
     private function invoices(Carbon $from, Carbon $to): Collection
     {
+        // Las facturas anuladas (nota de crédito) no cuentan.
+        $annulled = (int) DB::table('in_invoice_statuses')->where('name', 'Anulada')->value('id');
+
         return DB::table('in_invoices')
             ->whereBetween('created_at', [$from, $to])
+            ->when($annulled, fn ($q) => $q->where(fn ($w) => $w->where('status_id', '!=', $annulled)->orWhereNull('status_id')))
             ->get(['id', 'ncf_number', 'patient_id', 'doctor_id', 'insurance_id', 'catalog_services_id',
                 'billing_type', 'status_id', 'subtotal', 'discount', 'total', 'created_by', 'created_at']);
     }
 
     private function payments(Carbon $from, Carbon $to): Collection
     {
+        $annulled = (int) DB::table('in_invoice_statuses')->where('name', 'Anulada')->value('id');
+
         return DB::table('in_payments as p')
             ->leftJoin('in_payment_methods as m', 'm.id', '=', 'p.payment_method_id')
             ->whereBetween('p.paid_at', [$from, $to])
+            // Cobros de facturas anuladas: el dinero se devolvió.
+            ->when($annulled, fn ($q) => $q->whereNotIn('p.invoices_id', DB::table('in_invoices')->where('status_id', $annulled)->select('id')))
             ->get(['p.id', 'p.invoices_id', 'p.amount', 'p.paid_at', 'p.cash_session_id', 'm.name as method', 'm.code']);
     }
 
@@ -283,8 +291,10 @@ class DashboardController extends Controller
     private function ars(\Closure $names): array
     {
         $hasClaims = Schema::hasTable('acc_ars_claim_items');
+        $annulled = (int) DB::table('in_invoice_statuses')->where('name', 'Anulada')->value('id');
         $q = DB::table('in_invoices as f')
-            ->where('f.billing_type', 'insured')->whereNotNull('f.insurance_id')->where('f.discount', '>', 0);
+            ->where('f.billing_type', 'insured')->whereNotNull('f.insurance_id')->where('f.discount', '>', 0)
+            ->when($annulled, fn ($w) => $w->where(fn ($x) => $x->where('f.status_id', '!=', $annulled)->orWhereNull('f.status_id')));
         if ($hasClaims) {
             $q->leftJoin('acc_ars_claim_items as ci', 'ci.invoice_id', '=', 'f.id');
             $rows = $q->get(['f.insurance_id', 'f.discount', 'ci.id as item_id', 'ci.amount_paid', 'ci.amount_glosa']);

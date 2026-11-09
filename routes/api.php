@@ -7,11 +7,15 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Clinical\AttachmentController;
 use App\Http\Controllers\Clinical\EncounterController;
 use App\Http\Controllers\Clinical\PatientRecordController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CatalogAdminController;
 use App\Http\Controllers\CommonController;
+use App\Http\Controllers\CreditNoteController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DgiiController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\NcfSequenceController;
 use App\Http\Controllers\UserAdminController;
 use App\Http\Middleware\BillingAccess;
 use App\Http\Middleware\EnsurePasswordIsChanged;
@@ -94,6 +98,12 @@ Route::prefix('v1')->group(function () {
         Route::get('billing/invoices', [InvoiceController::class, 'index']);
         Route::get('billing/invoices/cashiers', [InvoiceController::class, 'cashiers']);
         Route::get('billing/invoices/{id}', [InvoiceController::class, 'show'])->whereNumber('id');
+        /* ANULACIÓN con nota de crédito B04 (administración y Contabilidad, ver controlador) */
+        Route::get('billing/invoices/{id}/annul-preview', [CreditNoteController::class, 'preview'])->whereNumber('id');
+        Route::post('billing/invoices/{id}/annul', [CreditNoteController::class, 'annul'])->whereNumber('id');
+        /* DGII: formato 607 (administración y Contabilidad, ver controlador) */
+        Route::get('dgii/607', [DgiiController::class, 'preview607']);
+        Route::get('dgii/607/download', [DgiiController::class, 'download607']);
 
         /* USUARIOS: mi cuenta y usuarios del sistema (Ajustes) */
         Route::get('users/catalogs', [UserAdminController::class, 'catalogs']);
@@ -116,8 +126,13 @@ Route::prefix('v1')->group(function () {
             Route::get('doctor-services', [CatalogAdminController::class, 'doctorServices']);
             Route::put('doctors/{id}/service', [CatalogAdminController::class, 'setDoctorService'])->whereNumber('id');
         });
-        // Posiciones: solo administradores.
+        // Posiciones, comprobantes NCF y bitácora: solo administradores.
         Route::middleware([RequireAccess::class . ':role:SuperAdmin,role:Administrador'])->prefix('settings')->group(function () {
+            Route::get('ncf', [NcfSequenceController::class, 'index']);
+            Route::post('ncf', [NcfSequenceController::class, 'store']);
+            Route::put('ncf/{id}/active', [NcfSequenceController::class, 'setActive'])->whereNumber('id');
+            Route::get('audit', [AuditLogController::class, 'index']);
+            Route::get('audit/meta', [AuditLogController::class, 'meta']);
             Route::get('positions', [CatalogAdminController::class, 'positions']);
             Route::post('positions', [CatalogAdminController::class, 'storePosition']);
             Route::put('positions/{id}', [CatalogAdminController::class, 'updatePosition'])->whereNumber('id');

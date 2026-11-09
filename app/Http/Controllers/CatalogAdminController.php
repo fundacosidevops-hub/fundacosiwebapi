@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MedicalCatalogServices;
 use App\Models\User;
+use App\Services\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -87,6 +88,8 @@ class CatalogAdminController extends Controller
             return $this->fail('El doctor ya está en esa especialidad.');
         }
 
+        $beforeId = $current?->catalog_services_id;
+
         // Mover (si ya tenía especialidad) o agregar (si no tenía).
         if ($current) {
             $current->update(['catalog_services_id' => $v['serviceId']]);
@@ -99,6 +102,10 @@ class CatalogAdminController extends Controller
 
         $service = DB::table('catalog_services')->where('id', $v['serviceId'])->value('description');
         $name = trim($doctor->name . ' ' . $doctor->last_name);
+        $before = $beforeId ? DB::table('catalog_services')->where('id', $beforeId)->value('description') : null;
+        AuditLog::record('doctor.service_changed', 'user', $doctor->id,
+            $before ? "Movió a {$name} de {$before} a {$service}" : "Agregó a {$name} a {$service}",
+            ['service' => $before], ['service' => $service]);
 
         return response()->json([
             'isSuccess' => true,
@@ -139,6 +146,7 @@ class CatalogAdminController extends Controller
         }
 
         $id = DB::table('positions')->insertGetId(['description' => $description]);
+        AuditLog::record('position.created', 'position', $id, "Creó la posición «{$description}»");
 
         return response()->json([
             'isSuccess' => true,
@@ -158,7 +166,10 @@ class CatalogAdminController extends Controller
             return $this->fail('Ya existe una posición con ese nombre.');
         }
 
+        $old = DB::table('positions')->where('id', $id)->value('description');
         DB::table('positions')->where('id', $id)->update(['description' => $description]);
+        AuditLog::record('position.renamed', 'position', $id, "Renombró la posición «{$old}» a «{$description}»",
+            ['description' => $old], ['description' => $description]);
 
         return response()->json([
             'isSuccess' => true,

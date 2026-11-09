@@ -6,6 +6,7 @@ use App\Exceptions\AccountingException;
 use App\Http\Resources\UserInfoResource;
 use App\Models\Accounting\CashSession;
 use App\Services\AccountingService;
+use App\Services\AuditLog;
 use App\Models\InvoiceItems;
 use App\Models\Invoices;
 use App\Models\PaymentMethods;
@@ -286,6 +287,20 @@ class BillingController extends Controller
             app(AccountingService::class)->postInvoice($invoice);
 
             DB::commit();
+            AuditLog::record('invoice.created', 'invoice', $invoice->id, sprintf(
+                'Facturó %s a %s: %s de servicios, %s a pagar por el paciente',
+                $invoice->ncf_number,
+                trim(($patient->name ?? '') . ' ' . ($patient->last_name ?? '')),
+                number_format((float) $invoice->total + (float) $invoice->discount, 2),
+                number_format((float) $invoice->total, 2)
+            ), null, [
+                'ncf' => $invoice->ncf_number,
+                'subtotal' => (float) $invoice->subtotal,
+                'coverage' => (float) $invoice->discount,
+                'total' => (float) $invoice->total,
+                'billing_type' => $invoice->billing_type,
+                'insurance_id' => $invoice->insurance_id,
+            ]);
             $invoice->load([
                 'patient',
                 'doctor',
@@ -353,6 +368,9 @@ class BillingController extends Controller
         if (Payments::where('invoices_id', $invoice->id)->exists()) {
             return response()->json(['message' => 'Esta factura ya fue cobrada.', 'isSuccess' => false], 422);
         }
+        if ((int) $invoice->status_id === (int) DB::table('in_invoice_statuses')->where('name', 'Anulada')->value('id')) {
+            return response()->json(['message' => 'Esta factura está anulada; no se puede cobrar.', 'isSuccess' => false], 422);
+        }
 
         // Todo cobro entra en la caja abierta del cajero (para el cuadre).
         $session = null;
@@ -387,6 +405,12 @@ class BillingController extends Controller
             app(AccountingService::class)->postPayment($payment, $invoice);
 
             DB::commit();
+            AuditLog::record('payment.created', 'payment', $payment->id, sprintf(
+                'Cobró %s de la factura %s (%s)',
+                number_format((float) $payment->amount, 2),
+                $invoice->ncf_number,
+                PaymentMethods::where('id', $payment->payment_method_id)->value('name') ?? 'forma de pago #' . $payment->payment_method_id
+            ), null, ['invoice_id' => $invoice->id, 'amount' => (float) $payment->amount, 'cash_session_id' => $session?->id]);
 
             return response()->json([
                 'message' => 'Pago creado correctamente',
