@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
- * Ajustes → Comprobantes NCF (solo administradores).
+ * Finanza → Comprobantes NCF (administración y Contabilidad).
  * Registra los rangos de NCF que autoriza la DGII. NcfService toma la
  * secuencia activa de cada tipo, así que solo puede haber una activa por tipo.
  */

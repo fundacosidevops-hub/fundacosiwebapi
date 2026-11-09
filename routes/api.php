@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Clinical\AttachmentController;
 use App\Http\Controllers\Clinical\EncounterController;
 use App\Http\Controllers\Clinical\PatientRecordController;
+use App\Http\Controllers\AppointmentRequestController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CatalogAdminController;
@@ -17,11 +18,13 @@ use App\Http\Controllers\DgiiController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\NcfSequenceController;
 use App\Http\Controllers\UserAdminController;
+use App\Http\Controllers\WebChatController;
 use App\Http\Middleware\BillingAccess;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\KioskOrStaff;
 use App\Http\Middleware\RequireAccess;
+use App\Http\Middleware\WebChatKey;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -49,6 +52,15 @@ Route::prefix('v1')->group(function () {
             ->middleware(KioskOrStaff::class);
         Route::get('common/get-ticket-location', [CommonController::class, 'getTicketByLocation'])
             ->middleware(KioskOrStaff::class);
+    });
+
+    /* SITIO WEB (chatbot): clave propia X-Web-Key, servidor a servidor.
+       Solo lectura de servicios/médicos/seguros y alta de solicitudes de cita. */
+    $webRate = 'throttle:' . (int) config('webchat.rate_per_minute', 60) . ',1,webchat';
+    Route::middleware([WebChatKey::class, $webRate])->prefix('web')->group(function () {
+        Route::get('info', [WebChatController::class, 'info']);
+        Route::get('schedule', [WebChatController::class, 'schedule']);
+        Route::post('appointment-requests', [WebChatController::class, 'storeAppointment']);
     });
 
     Route::middleware(['auth:api', EnsureUserIsActive::class, EnsurePasswordIsChanged::class])->group(function () use ($billing) {
@@ -94,6 +106,12 @@ Route::prefix('v1')->group(function () {
             Route::post('cash/close', [CashSessionController::class, 'close']);
         });
 
+        /* SOLICITUDES DE CITA del sitio web: quien tiene acceso a Facturación */
+        Route::middleware([$billing])->group(function () {
+            Route::get('appointment-requests', [AppointmentRequestController::class, 'index']);
+            Route::put('appointment-requests/{id}', [AppointmentRequestController::class, 'update'])->whereNumber('id');
+        });
+
         /* HISTORIAL DE FACTURAS (permiso billing.view o accounting.view, ver controlador) */
         Route::get('billing/invoices', [InvoiceController::class, 'index']);
         Route::get('billing/invoices/cashiers', [InvoiceController::class, 'cashiers']);
@@ -126,11 +144,14 @@ Route::prefix('v1')->group(function () {
             Route::get('doctor-services', [CatalogAdminController::class, 'doctorServices']);
             Route::put('doctors/{id}/service', [CatalogAdminController::class, 'setDoctorService'])->whereNumber('id');
         });
-        // Posiciones, comprobantes NCF y bitácora: solo administradores.
-        Route::middleware([RequireAccess::class . ':role:SuperAdmin,role:Administrador'])->prefix('settings')->group(function () {
+        // Comprobantes NCF (Finanza): administración y Contabilidad.
+        Route::middleware([RequireAccess::class . ':accounting.manage'])->prefix('settings')->group(function () {
             Route::get('ncf', [NcfSequenceController::class, 'index']);
             Route::post('ncf', [NcfSequenceController::class, 'store']);
             Route::put('ncf/{id}/active', [NcfSequenceController::class, 'setActive'])->whereNumber('id');
+        });
+        // Posiciones y bitácora: solo administradores.
+        Route::middleware([RequireAccess::class . ':role:SuperAdmin,role:Administrador'])->prefix('settings')->group(function () {
             Route::get('audit', [AuditLogController::class, 'index']);
             Route::get('audit/meta', [AuditLogController::class, 'meta']);
             Route::get('positions', [CatalogAdminController::class, 'positions']);
