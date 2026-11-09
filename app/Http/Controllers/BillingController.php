@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\NcfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(
@@ -282,6 +283,10 @@ class BillingController extends Controller
                 ]);
             }
             $ticket->update(['status' => 'done']);
+            // Turno del que salió la factura (Historial clínico lo muestra y ordena por él).
+            if (Schema::hasColumn('in_invoices', 'queue_manager_id')) {
+                $invoice->forceFill(['queue_manager_id' => $ticket->id])->save();
+            }
 
             // Asiento contable de la factura (CxC paciente / CxC ARS / ingresos).
             app(AccountingService::class)->postInvoice($invoice);

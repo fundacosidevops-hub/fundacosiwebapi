@@ -218,6 +218,68 @@ class PatientRecordController extends Controller
      * Pacientes del día: las facturas de la fecha (cada una es una atención)
      * con el estado de su consulta. Un médico ve los suyos por defecto.
      */
+    /**
+     * Turno de cada factura del día: el guardado en la factura
+     * (queue_manager_id) o, en facturas anteriores, el turno atendido del
+     * mismo paciente, médico y servicio ese día (en orden, uno por factura).
+     *
+     * @return array<int, \App\Models\QueueManager>
+     */
+    private function ticketsFor($invoices, string $date): array
+    {
+        if ($invoices->isEmpty()) {
+            return [];
+        }
+        $out = [];
+        $hasColumn = \Illuminate\Support\Facades\Schema::hasColumn('in_invoices', 'queue_manager_id');
+        $linked = $hasColumn ? $invoices->pluck('queue_manager_id')->filter()->all() : [];
+
+        $candidates = \App\Models\QueueManager::whereBetween('created_at', [$date . ' 00:00:00', $date . ' 23:59:59'])
+            ->whereIn('doctor_id', $invoices->pluck('doctor_id')->filter()->unique())
+            ->orderBy('created_at')->orderBy('id')
+            ->get(['id', 'ticket', 'patient_id', 'patient_user_id', 'doctor_id', 'catalog_services_id', 'status', 'special_turn', 'created_at']);
+        $byId = $candidates->keyBy('id');
+        $used = array_flip($linked);
+
+        // Documento del paciente y de su tutor (los turnos guardan la cédula).
+        $docs = DB::table('users as u')->leftJoin('users as h', 'h.id', '=', 'u.dependent_of')
+            ->whereIn('u.id', $invoices->pluck('patient_id')->unique())
+            ->get(['u.id', 'u.document_number', 'h.document_number as holder_document'])
+            ->keyBy('id');
+
+        foreach ($invoices->sortBy('created_at') as $f) {
+            if ($hasColumn && $f->queue_manager_id && $byId->has($f->queue_manager_id)) {
+                $out[$f->id] = $byId[$f->queue_manager_id];
+
+                continue;
+            }
+            $d = $docs->get($f->patient_id);
+            $match = $candidates->first(function ($t) use ($f, $d, $used) {
+                if (isset($used[$t->id]) || (int) $t->doctor_id !== (int) $f->doctor_id) {
+                    return false;
+                }
+                if ($f->catalog_services_id && (int) $t->catalog_services_id !== (int) $f->catalog_services_id) {
+                    return false;
+                }
+                if ($t->created_at && $f->created_at && $t->created_at->gt($f->created_at)) {
+                    return false;
+                }
+                if ($t->patient_user_id) {
+                    return (int) $t->patient_user_id === (int) $f->patient_id;
+                }
+                $doc = (string) $t->patient_id;
+
+                return $doc !== '' && $d && in_array($doc, array_filter([(string) $d->document_number, (string) $d->holder_document]), true);
+            });
+            if ($match) {
+                $used[$match->id] = true;
+                $out[$f->id] = $match;
+            }
+        }
+
+        return $out;
+    }
+
     public function worklist(Request $request)
     {
         $this->authorizeAny('clinical.view', 'clinical.triage');
@@ -239,6 +301,7 @@ class PatientRecordController extends Controller
         $invoices = $q->get();
 
         $encounters = Encounter::withCount('vitals')->whereIn('invoice_id', $invoices->pluck('id'))->get()->keyBy('invoice_id');
+        $tickets = $this->ticketsFor($invoices, $date);
         $allergies = Allergy::whereIn('patient_id', $invoices->pluck('patient_id'))
             ->get(['patient_id', 'substance', 'severity'])->groupBy('patient_id');
 
@@ -246,8 +309,9 @@ class PatientRecordController extends Controller
             'date' => $date,
             'doctor_id' => $doctorId,
             'doctor_locked' => (bool) $locked,
-            'rows' => $invoices->map(function ($f) use ($encounters, $allergies) {
+            'rows' => $invoices->map(function ($f) use ($encounters, $allergies, $tickets) {
                 $e = $encounters->get($f->id);
+                $t = $tickets[$f->id] ?? null;
                 $age = $f->patient?->birth_date ? Carbon::parse($f->patient->birth_date)->age : null;
 
                 return [
@@ -266,8 +330,16 @@ class PatientRecordController extends Controller
                     'encounter_id' => $e?->id,
                     'encounter_status' => $e?->status,
                     'has_vitals' => ($e?->vitals_count ?? 0) > 0,
+                    'attended_at' => $e?->status === 'signed' ? $e->signed_at : null,
+                    'ticket' => $t?->ticket,
+                    'ticket_at' => $t?->created_at,
+                    'special_turn' => (bool) ($t?->special_turn ?? false),
                 ];
-            }),
+            })
+                // Orden de llegada: por la hora en que se sacó el turno; las
+                // facturas sin turno van al final, por hora de factura.
+                ->sortBy(fn ($r) => [$r['ticket_at'] ? 0 : 1, (string) ($r['ticket_at'] ?? $r['time']), $r['invoice_id']])
+                ->values(),
         ]);
     }
 }
