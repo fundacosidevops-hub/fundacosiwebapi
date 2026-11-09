@@ -58,6 +58,7 @@ class UserAdminController extends Controller
         'civilStatusId.exists' => 'El estado civil no existe.',
         'nationalitieId.exists' => 'La nacionalidad no existe.',
         'insuranceId.exists' => 'El seguro no existe.',
+        'positionId.required' => 'Elige la posición del usuario.',
         'positionId.exists' => 'La posición no existe.',
         'locationId.exists' => 'La ubicación no existe.',
         'serviceId.exists' => 'El servicio no existe.',
@@ -206,7 +207,7 @@ class UserAdminController extends Controller
         $v = $request->validate($this->personalRules($blank) + [
             'userTypeId' => ['required', 'integer', Rule::in([1, 3])],
             'roleId' => ['required', 'string', Rule::exists('roles', 'name')->where('guard_name', 'api')],
-            'positionId' => 'nullable|integer|exists:positions,id',
+            'positionId' => 'required|integer|exists:positions,id',
             'locationId' => 'required|integer|exists:user_locations,id',
             'serviceId' => 'nullable|integer|exists:catalog_services,id|required_if:userTypeId,3',
             'isActive' => 'sometimes|boolean',
@@ -228,7 +229,7 @@ class UserAdminController extends Controller
                 'avatar' => 'avatar.jpg',
                 'password' => Hash::make($v['password']),
                 'user_type_id' => $v['userTypeId'],
-                'position_id' => $v['positionId'] ?? null,
+                'position_id' => $v['positionId'],
                 'user_locations_id' => $v['locationId'],
                 'is_active' => $v['isActive'] ?? true,
             ]);
@@ -269,7 +270,7 @@ class UserAdminController extends Controller
         $rules = $this->personalRules($user) + [
             'userTypeId' => ['required', 'integer', Rule::in([1, 2, 3])],
             'roleId' => ['required', 'string', Rule::exists('roles', 'name')->where('guard_name', 'api')],
-            'positionId' => 'nullable|integer|exists:positions,id',
+            'positionId' => 'required|integer|exists:positions,id',
             'locationId' => 'nullable|integer|exists:user_locations,id',
             'serviceId' => 'nullable|integer|exists:catalog_services,id|required_if:userTypeId,3',
             'isActive' => 'sometimes|boolean',
@@ -293,7 +294,7 @@ class UserAdminController extends Controller
         DB::transaction(function () use ($user, $v) {
             $user->update($this->personalData($v, $user) + [
                 'user_type_id' => $v['userTypeId'],
-                'position_id' => $v['positionId'] ?? $user->position_id,
+                'position_id' => $v['positionId'],
                 'user_locations_id' => $v['locationId'] ?? $user->user_locations_id,
                 'is_active' => $v['isActive'] ?? $user->is_active,
             ]);

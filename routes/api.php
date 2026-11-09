@@ -150,13 +150,16 @@ Route::prefix('v1')->group(function () {
             Route::post('ncf', [NcfSequenceController::class, 'store']);
             Route::put('ncf/{id}/active', [NcfSequenceController::class, 'setActive'])->whereNumber('id');
         });
-        // Posiciones y bitácora: solo administradores.
+        // Posiciones, especialidades y bitácora: solo administradores.
         Route::middleware([RequireAccess::class . ':role:SuperAdmin,role:Administrador'])->prefix('settings')->group(function () {
             Route::get('audit', [AuditLogController::class, 'index']);
             Route::get('audit/meta', [AuditLogController::class, 'meta']);
             Route::get('positions', [CatalogAdminController::class, 'positions']);
             Route::post('positions', [CatalogAdminController::class, 'storePosition']);
             Route::put('positions/{id}', [CatalogAdminController::class, 'updatePosition'])->whereNumber('id');
+            // Especialidades (catalog_services): se gestionan en Médicos por especialidad.
+            Route::post('services', [CatalogAdminController::class, 'storeService']);
+            Route::put('services/{id}', [CatalogAdminController::class, 'updateService'])->whereNumber('id');
         });
 
         /* CAJA (cuadre): abrir/cerrar la propia está arriba con Facturación;

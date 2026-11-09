@@ -12,7 +12,9 @@ use Illuminate\Support\Str;
 /**
  * Ajustes → mantenimientos (solo SuperAdmin y Administrador, ver rutas):
  *  - Médicos por especialidad: mover un doctor a otro servicio, o asignarle
- *    uno si no tiene.
+ *    uno si no tiene (administradores y Facturación). En la misma pantalla,
+ *    los administradores crean, renombran y activan/desactivan especialidades
+ *    (tabla catalog_services).
  *  - Posiciones: crear y renombrar registros de la tabla positions.
  *
  * Un doctor es un usuario de tipo «Doctor» (user_type_id = 3) y su
@@ -61,7 +63,128 @@ class CatalogAdminController extends Controller
             ])->values(),
             'unassigned' => $list->whereNull('service_id')->values(),
             'doctors' => $list,
+            'can_manage' => $this->isAdmin(),
         ]);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Especialidades (catalog_services) — solo administradores            */
+    /* ------------------------------------------------------------------ */
+
+    public function storeService(Request $request)
+    {
+        $description = $this->serviceName($request);
+        if ($this->serviceExists($description)) {
+            return $this->fail('Ya existe una especialidad con ese nombre.');
+        }
+
+        // Las banderas (ambulatorio, emergencia, etc.) quedan con sus valores
+        // por defecto de la tabla, igual que las especialidades existentes.
+        $id = DB::table('catalog_services')->insertGetId([
+            'description' => $description,
+            'is_active' => true,
+            'created_user' => auth()->id(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        AuditLog::record('service.created', 'catalog_service', $id, "Creó la especialidad «{$description}»");
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => "Especialidad «{$description}» creada. Ya puedes asignarle médicos.",
+            'data' => ['id' => $id, 'description' => $description, 'is_active' => true],
+        ], 201);
+    }
+
+    /** Renombrar y/o activar/desactivar una especialidad. */
+    public function updateService(Request $request, int $id)
+    {
+        $current = DB::table('catalog_services')->where('id', $id)->first(['id', 'description', 'is_active']);
+        if (! $current) {
+            return $this->fail('La especialidad no existe.', 404);
+        }
+
+        $request->validate(['is_active' => 'sometimes|boolean']);
+        $changes = [];
+
+        if ($request->has('description')) {
+            $description = $this->serviceName($request);
+            if ($this->serviceExists($description, $id)) {
+                return $this->fail('Ya existe una especialidad con ese nombre.');
+            }
+            if ($description !== $current->description) {
+                $changes['description'] = $description;
+            }
+        }
+        if ($request->has('is_active') && $request->boolean('is_active') !== (bool) $current->is_active) {
+            $changes['is_active'] = $request->boolean('is_active');
+        }
+        if (! $changes) {
+            return response()->json(['isSuccess' => true, 'message' => 'Sin cambios.']);
+        }
+
+        DB::table('catalog_services')->where('id', $id)->update($changes + ['updated_at' => now()]);
+
+        $name = $changes['description'] ?? $current->description;
+        $parts = [];
+        if (isset($changes['description'])) {
+            $parts[] = "renombró «{$current->description}» a «{$name}»";
+        }
+        if (array_key_exists('is_active', $changes)) {
+            $parts[] = ($changes['is_active'] ? 'activó' : 'desactivó') . " «{$name}»";
+        }
+        AuditLog::record(
+            array_key_exists('is_active', $changes) && ! $changes['is_active'] ? 'service.deactivated' : 'service.updated',
+            'catalog_service', $id,
+            'Especialidad: ' . implode(' y ', $parts),
+            ['description' => $current->description, 'is_active' => (bool) $current->is_active],
+            ['description' => $name, 'is_active' => $changes['is_active'] ?? (bool) $current->is_active]
+        );
+
+        $message = 'Especialidad actualizada.';
+        if (array_key_exists('is_active', $changes) && ! $changes['is_active']) {
+            $doctors = MedicalCatalogServices::where('catalog_services_id', $id)->count();
+            $message = "Especialidad «{$name}» desactivada: ya no aparece en el kiosco ni en Facturación"
+                . ($doctors ? " ({$doctors} médicos siguen asignados a ella)." : '.');
+        }
+
+        return response()->json(['isSuccess' => true, 'message' => $message]);
+    }
+
+    private function serviceName(Request $request): string
+    {
+        $v = $request->validate([
+            'description' => 'required|string|min:2|max:100',
+        ], [
+            'description.required' => 'Escribe el nombre de la especialidad.',
+            'description.min' => 'El nombre es muy corto.',
+            'description.max' => 'El nombre admite hasta 100 caracteres.',
+        ]);
+
+        // En mayúsculas, como las especialidades existentes (PEDIATRIA, CARDIOLOGIA…).
+        return Str::upper(preg_replace('/\s+/u', ' ', trim($v['description'])));
+    }
+
+    /**
+     * Compara sin mayúsculas ni tildes (PEDIATRIA = Pediatría), en PHP para
+     * no depender de la intercalación de la base de datos. La tabla es pequeña.
+     */
+    private function serviceExists(string $description, ?int $exceptId = null): bool
+    {
+        $key = fn (string $v) => Str::lower(Str::ascii(trim($v)));
+        $wanted = $key($description);
+
+        return DB::table('catalog_services')
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->pluck('description')
+            ->contains(fn ($d) => $key((string) $d) === $wanted);
+    }
+
+    private function isAdmin(): bool
+    {
+        $user = auth()->user();
+
+        return $user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['SuperAdmin', 'Administrador']);
     }
 
     public function setDoctorService(Request $request, int $id)
