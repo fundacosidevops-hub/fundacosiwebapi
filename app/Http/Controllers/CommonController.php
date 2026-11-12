@@ -441,7 +441,11 @@ class CommonController
             return response()->json(['isSuccess' => true, 'message' => '', 'data' => $existing], 200);
         }
 
-        // Buscar nuevo turno
+        // Buscar nuevo turno. Cada cajero responde solo a sus turnos:
+        //  1) un turno pendiente que ya tenga asignado (desde el listado);
+        //  2) si no tiene, uno pendiente SIN asignar.
+        // Nunca toma un turno pendiente asignado a otro cajero.
+        // En cada caso, primero los preferenciales y luego por orden de llegada.
         $q = DB::transaction(function () use ($validated) {
 
             $baseQuery = QueueManager::whereBetween('created_at', [
@@ -451,20 +455,14 @@ class CommonController
                 ->where('status', 'pending')
                 ->where('location', $validated['userLocationsId']);
 
-            // Buscar primero un turno especial
-            $q = (clone $baseQuery)
-                ->where('special_turn', true)
+            $next = fn ($query) => (clone $query)
+                ->orderByDesc('special_turn')
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->first();
 
-            // Si no hay turnos especiales, tomar el más antiguo sin importar si es especial o no
-            if (! $q) {
-                $q = (clone $baseQuery)
-                    ->orderBy('id')
-                    ->lockForUpdate()
-                    ->first();
-            }
+            $q = $next((clone $baseQuery)->where('assign_user_id', auth()->id()))
+                ?? $next((clone $baseQuery)->whereNull('assign_user_id'));
 
             if (! $q) {
                 return null;
