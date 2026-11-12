@@ -152,11 +152,11 @@ class CommonController
 
                     if ($now->between(
                         $now->copy()->setTime(0, 0),
-                        $now->copy()->setTime(10, 29, 59)
+                        $now->copy()->setTime(11, 00, 59)
                     )) {
-                        $q->whereBetween('start_time', ['00:00:00', '10:30:00']);
+                        $q->whereBetween('start_time', ['00:00:00', '11:00:00']);
                     } else {
-                        $q->where('start_time', '>=', '10:30:00');
+                        $q->where('start_time', '>=', '11:00:00');
                     }
                 })
 
