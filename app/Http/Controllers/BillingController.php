@@ -454,20 +454,53 @@ class BillingController extends Controller
     }
     #[OA\Get(
         path: '/api/v1/billing/get-all-cashier-list',
-        summary: 'Obtener todos los cajeros',
+        summary: 'Cajeros a los que se puede asignar un turno',
         tags: ['Billing'],
         security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'locationId',
+                description: 'Sede; si no se envía, la del usuario que consulta',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'integer')
+            ),
+        ],
         responses: [
             new OA\Response(response: 200, description: 'Datos obtenido correctamente'),
             new OA\Response(response: 401, description: 'No autorizado'),
         ]
     )]
-    public function getAllCashierList()
+    public function getAllCashierList(Request $request)
     {
-        return response()->json(
-            User::where('is_active', true)
-                ->where('email', 'LIKE', 'facturacion%')
-                ->get()
-        );
+        $request->validate(['locationId' => 'nullable|integer']);
+        $locationId = (int) ($request->input('locationId') ?: auth()->user()?->user_locations_id);
+
+        return response()->json(self::eligibleCashiers($locationId)->values());
+    }
+
+    /** Roles que pueden facturar y recibir turnos. */
+    public const CASHIER_ROLES = ['Caja', 'Administrador', 'SuperAdmin'];
+
+    /**
+     * Cajeros a los que se puede asignar un turno de la sede: usuarios activos
+     * con rol Caja, Administrador o SuperAdmin, de esa sede y con su caja
+     * abierta. (Si la base aún no tiene el módulo de caja, no se exige caja.)
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    public static function eligibleCashiers(int $locationId)
+    {
+        $query = User::query()
+            ->where('is_active', true)
+            ->where('user_locations_id', $locationId)
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', self::CASHIER_ROLES)->where('guard_name', 'api'));
+
+        if (Schema::hasTable('acc_cash_sessions')) {
+            $query->whereIn('id', CashSession::where('status', 'open')->select('user_id'));
+        }
+
+        return $query->orderBy('name')->orderBy('last_name')
+            ->get(['id', 'name', 'last_name', 'email', 'avatar', 'is_active', 'user_locations_id']);
     }
 }

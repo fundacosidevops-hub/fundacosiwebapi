@@ -732,6 +732,20 @@ class CommonController
                 'cashierId' => 'required|integer',
             ]);
 
+            // Solo cajeros de la sede del turno, con rol de facturación y caja abierta.
+            $turn = QueueManager::find($validated['ticketId']);
+            if (! $turn) {
+                return response()->json(['isSuccess' => false, 'message' => 'No se encontró el turno.'], 404);
+            }
+            $eligible = BillingController::eligibleCashiers((int) $turn->location)
+                ->contains('id', (int) $validated['cashierId']);
+            if (! $eligible) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Ese cajero no puede recibir el turno: debe estar activo, ser Caja, Administrador o SuperAdmin de esta sede y tener su caja abierta.',
+                ], 422);
+            }
+
             $data = DB::transaction(function () use ($validated) {
                 $updated = QueueManager::where('id', $validated['ticketId'])
                     ->update(['assign_user_id' => $validated['cashierId']]);
