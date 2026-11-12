@@ -21,6 +21,42 @@ use OpenApi\Attributes as OA;
 
 class CommonController
 {
+    /**
+     * Corte entre el turno de la mañana y el de la tarde. Hasta las 11:00:59
+     * se ofrecen los médicos de la mañana (empiezan antes de las 11:00, o sea
+     * hasta las 10:59); desde las 11:01:00, los de la tarde (empiezan a las
+     * 11:00 o después). Así un médico de las 11:00 sale en un solo turno.
+     * Facturación avisa en rojo los últimos SHIFT_WARN_MINUTES minutos (ver shiftInfo()).
+     */
+    private const SHIFT_CUTOFF = '11:00:00';
+    private const SHIFT_WARN_MINUTES = 15;
+
+    /** Momento en que la lista pasa a ser la del turno de la tarde. */
+    private function shiftSwitchAt(Carbon $now): Carbon
+    {
+        [$h, $m] = array_map('intval', explode(':', self::SHIFT_CUTOFF));
+
+        return $now->copy()->setTime($h, $m, 59)->addSecond();
+    }
+
+    /**
+     * Facturación: hora del servidor y momento del cambio de turno, para
+     * mostrar la alerta con el mismo reloj con el que se filtran los médicos.
+     */
+    public function shiftInfo()
+    {
+        $now = Carbon::now();
+        $switchAt = $this->shiftSwitchAt($now);
+
+        return response()->json([
+            'now' => $now->toIso8601String(),
+            'cutoff' => substr(self::SHIFT_CUTOFF, 0, 5),
+            'switch_at' => $switchAt->toIso8601String(),
+            'warn_minutes' => self::SHIFT_WARN_MINUTES,
+            'shift' => $now->lt($switchAt) ? 'morning' : 'afternoon',
+        ]);
+    }
+
     #[OA\Get(
         path: '/api/v1/common/insurance',
         summary: 'Obtener todos los seguros a facturar',
@@ -150,13 +186,11 @@ class CommonController
                         )
                     ");
 
-                    if ($now->between(
-                        $now->copy()->setTime(0, 0),
-                        $now->copy()->setTime(11, 00, 59)
-                    )) {
-                        $q->whereBetween('start_time', ['00:00:00', '11:00:00']);
+                    // Turno de la mañana hasta las 11:00:59; luego, el de la tarde.
+                    if ($now->lt($this->shiftSwitchAt($now))) {
+                        $q->where('start_time', '<', self::SHIFT_CUTOFF);
                     } else {
-                        $q->where('start_time', '>=', '11:00:00');
+                        $q->where('start_time', '>=', self::SHIFT_CUTOFF);
                     }
                 })
 

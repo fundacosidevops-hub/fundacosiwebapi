@@ -50,6 +50,9 @@ Route::prefix('v1')->group(function () {
             ->middleware(KioskOrStaff::class);
         Route::get('common/catalog-services-doctor', [CommonController::class, 'getDoctorsByCatalogServices'])
             ->middleware(KioskOrStaff::class);
+        // Cambio de turno mañana/tarde (alerta en Facturación).
+        Route::get('common/shift-info', [CommonController::class, 'shiftInfo'])
+            ->middleware(KioskOrStaff::class);
         Route::get('common/get-ticket-location', [CommonController::class, 'getTicketByLocation'])
             ->middleware(KioskOrStaff::class);
     });
