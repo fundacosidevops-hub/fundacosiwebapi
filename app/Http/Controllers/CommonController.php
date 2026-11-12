@@ -563,7 +563,7 @@ class CommonController
     public function getAllTicketsByLocation(Request $request)
     {
         return response()->json(
-            QueueManager::with('user.position', 'doctor.position')
+            QueueManager::with('user.position', 'doctor.position', 'catalogServices:id,description')
                 ->where('location', $request->locationId)
                 ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
                 ->orderBy('id', 'desc')
