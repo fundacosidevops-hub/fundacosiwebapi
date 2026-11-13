@@ -16,6 +16,8 @@ class AuditLogController extends Controller
         'cash' => 'Cajas',
         'doctor' => 'Médicos',
         'position' => 'Posiciones',
+        'service' => 'Especialidades',
+        'study' => 'Estudios y precios',
         'user' => 'Usuarios',
         'auth' => 'Accesos',
         'accounting' => 'Contabilidad',
