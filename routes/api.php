@@ -90,6 +90,8 @@ Route::prefix('v1')->group(function () {
             Route::post('save-patient', [AuthController::class, 'savePatient']);
             Route::post('billing/save-bill', [BillingController::class, 'save']);
             Route::post('billing/save-payment', [BillingController::class, 'savePayment']);
+            // Buscar estudio: guardar precio y % de cobertura de la ARS en el catálogo.
+            Route::put('billing/studies/{id}/rate', [BillingController::class, 'updateStudyRate'])->whereNumber('id');
             Route::post('common/skip-turn', [CommonController::class, 'skipTurn']);
             Route::post('common/update-assistances-doctor', [CommonController::class, 'updateAssistancesDoctor']);
             Route::post('common/update-turn-status', [CommonController::class, 'updateTurnStatus']);

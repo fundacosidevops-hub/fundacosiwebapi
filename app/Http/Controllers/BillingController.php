@@ -479,6 +479,78 @@ class BillingController extends Controller
         return response()->json(self::eligibleCashiers($locationId)->values());
     }
 
+    /**
+     * Buscar estudio → editar: guarda en el catálogo el precio del estudio
+     * (medical_studies, aplica a todas las ARS) y, si se factura con ARS, su
+     * % de cobertura para esa ARS (insurances_rates). Quien factura puede
+     * hacerlo (ver rutas); queda en la bitácora.
+     */
+    public function updateStudyRate(Request $request, int $id)
+    {
+        $v = $request->validate([
+            'price' => 'required|numeric|min:0|max:9999999',
+            'insuranceId' => 'nullable|integer|exists:insurances,id',
+            'percentage' => 'nullable|numeric|min:0|max:100|required_with:insuranceId',
+        ], [
+            'price.required' => 'Escribe el precio.',
+            'price.min' => 'El precio no puede ser negativo.',
+            'price.max' => 'El precio es demasiado alto.',
+            'percentage.min' => 'La cobertura no puede ser menor que 0 %.',
+            'percentage.max' => 'La cobertura no puede pasar de 100 %.',
+            'percentage.required_with' => 'Escribe el % de cobertura.',
+        ]);
+
+        $study = DB::table('medical_studies')->where('id', $id)->first(['id', 'description', 'price']);
+        if (! $study) {
+            return response()->json(['isSuccess' => false, 'message' => 'El estudio no existe.'], 404);
+        }
+
+        $rate = null;
+        if (! empty($v['insuranceId'])) {
+            $rate = DB::table('insurances_rates')
+                ->where('medical_studies_id', $id)
+                ->where('insurances_id', $v['insuranceId'])
+                ->first(['id', 'percentage']);
+            if (! $rate) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Ese estudio no tiene tarifa para esta ARS.',
+                ], 422);
+            }
+        }
+
+        $price = round((float) $v['price'], 2);
+        $percentage = $rate ? round((float) $v['percentage'], 2) : null;
+
+        DB::transaction(function () use ($id, $price, $rate, $percentage) {
+            DB::table('medical_studies')->where('id', $id)->update(['price' => $price, 'updated_at' => now()]);
+            if ($rate) {
+                DB::table('insurances_rates')->where('id', $rate->id)->update(['percentage' => $percentage, 'updated_at' => now()]);
+            }
+        });
+
+        $insurance = $rate ? DB::table('insurances')->where('id', $v['insuranceId'])->value('description') : null;
+        $parts = [];
+        if ((float) $study->price !== $price) {
+            $parts[] = sprintf('precio %s → %s', number_format((float) $study->price, 2), number_format($price, 2));
+        }
+        if ($rate && (float) $rate->percentage !== $percentage) {
+            $parts[] = sprintf('cobertura %s %% → %s %% en %s', rtrim(rtrim(number_format((float) $rate->percentage, 2), '0'), '.'), rtrim(rtrim(number_format($percentage, 2), '0'), '.'), $insurance);
+        }
+        if ($parts) {
+            AuditLog::record('study.rate_changed', 'medical_study', $id,
+                sprintf('Estudio «%s»: %s', $study->description, implode('; ', $parts)),
+                ['price' => (float) $study->price, 'percentage' => $rate ? (float) $rate->percentage : null, 'insurance' => $insurance],
+                ['price' => $price, 'percentage' => $percentage, 'insurance' => $insurance]);
+        }
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => $parts ? 'Estudio actualizado en el catálogo.' : 'Sin cambios.',
+            'data' => ['id' => $id, 'price' => $price, 'percentage' => $percentage],
+        ]);
+    }
+
     /** Roles que pueden facturar y recibir turnos. */
     public const CASHIER_ROLES = ['Caja', 'Administrador', 'SuperAdmin'];
 
