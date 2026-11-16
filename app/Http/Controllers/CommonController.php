@@ -22,13 +22,14 @@ use OpenApi\Attributes as OA;
 class CommonController
 {
     /**
-     * Corte entre el turno de la mañana y el de la tarde. Hasta las 11:00:59
-     * se ofrecen los médicos de la mañana (empiezan antes de las 11:00, o sea
-     * hasta las 10:59); desde las 11:01:00, los de la tarde (empiezan a las
-     * 11:00 o después). Así un médico de las 11:00 sale en un solo turno.
-     * Facturación avisa en rojo los últimos SHIFT_WARN_MINUTES minutos (ver shiftInfo()).
+     * Corte entre el turno de la mañana y el de la tarde (el único lugar donde
+     * se define). Hasta las 10:15:59 se ofrecen los médicos de la mañana
+     * (empiezan antes de las 10:15); desde las 10:16:00, los de la tarde
+     * (empiezan a las 10:15 o después). Así cada médico sale en un solo turno.
+     * Facturación avisa en rojo los últimos SHIFT_WARN_MINUTES minutos y el PDF
+     * de horarios usa este mismo corte (ver shiftInfo()).
      */
-    private const SHIFT_CUTOFF = '11:00:00';
+    private const SHIFT_CUTOFF = '10:15:00';
     private const SHIFT_WARN_MINUTES = 15;
 
     /** Momento en que la lista pasa a ser la del turno de la tarde. */
