@@ -14,6 +14,7 @@ class AuditLogController extends Controller
         'invoice' => 'Facturas',
         'payment' => 'Cobros',
         'cash' => 'Cajas',
+        'turn' => 'Turnos',
         'doctor' => 'Médicos',
         'position' => 'Posiciones',
         'service' => 'Especialidades',

@@ -14,6 +14,7 @@ use App\Models\Nationalities;
 use App\Models\QueueManager;
 use App\Models\User;
 use App\Models\UserLocations;
+use App\Services\AuditLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -723,6 +724,64 @@ class CommonController
             new OA\Response(response: 401, description: 'No autorizado'),
         ]
     )]
+    /**
+     * Listado de turnos → «Asignarme todos»: el cajero se asigna de una vez los
+     * turnos de hoy de una especialidad que están pendientes y SIN asignar en
+     * su sede. No toca los que ya tiene otro cajero. Debe poder recibir turnos
+     * (rol de facturación, de esa sede y con caja abierta).
+     */
+    public function assignSpecialtyTurns(Request $request)
+    {
+        $v = $request->validate([
+            'catalogServiceId' => 'required|integer|exists:catalog_services,id',
+        ], [
+            'catalogServiceId.required' => 'Elige la especialidad.',
+            'catalogServiceId.exists' => 'La especialidad no existe.',
+        ]);
+
+        $user = auth()->user();
+        $locationId = (int) $user->user_locations_id;
+        if (! BillingController::eligibleCashiers($locationId)->contains('id', (int) $user->id)) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Para asignarte turnos debes tener tu caja abierta y ser Caja, Administrador o SuperAdmin de esta sede.',
+            ], 422);
+        }
+
+        $ids = DB::transaction(function () use ($v, $locationId, $user) {
+            $ids = QueueManager::whereBetween('created_at', [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()])
+                ->where('location', $locationId)
+                ->where('catalog_services_id', $v['catalogServiceId'])
+                ->where('status', 'pending')
+                ->whereNull('assign_user_id')
+                ->lockForUpdate()
+                ->pluck('id');
+
+            if ($ids->isNotEmpty()) {
+                // whereNull otra vez: si otro cajero tomó alguno en el camino, no se pisa.
+                QueueManager::whereIn('id', $ids)->whereNull('assign_user_id')
+                    ->update(['assign_user_id' => $user->id]);
+            }
+
+            return QueueManager::whereIn('id', $ids)->where('assign_user_id', $user->id)->pluck('id');
+        });
+
+        $service = DB::table('catalog_services')->where('id', $v['catalogServiceId'])->value('description');
+        if ($ids->isNotEmpty()) {
+            AuditLog::record('turn.bulk_assigned', 'catalog_service', (int) $v['catalogServiceId'],
+                sprintf('Se asignó %d turno(s) de %s', $ids->count(), $service),
+                null, ['turns' => $ids->values()]);
+        }
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => $ids->isEmpty()
+                ? "No hay turnos de {$service} pendientes sin asignar."
+                : sprintf('Te asignaste %d %s de %s.', $ids->count(), $ids->count() === 1 ? 'turno' : 'turnos', $service),
+            'data' => ['ids' => $ids->values(), 'count' => $ids->count()],
+        ]);
+    }
+
     public function updateTurnCashier(Request $request)
     {
         try {

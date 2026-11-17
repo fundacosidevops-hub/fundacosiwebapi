@@ -96,6 +96,7 @@ Route::prefix('v1')->group(function () {
             Route::post('common/update-assistances-doctor', [CommonController::class, 'updateAssistancesDoctor']);
             Route::post('common/update-turn-status', [CommonController::class, 'updateTurnStatus']);
             Route::post('common/update-turn-cashier', [CommonController::class, 'updateTurnCashier']);
+            Route::post('common/assign-specialty-turns', [CommonController::class, 'assignSpecialtyTurns']);
             Route::post('common/update-relationships', [CommonController::class, 'updateRelationships']);
             Route::post('common/remove-relationship', [CommonController::class, 'removeRelationship']);
             Route::get('billing/user-info', [BillingController::class, 'getUserBillingInfo']);
