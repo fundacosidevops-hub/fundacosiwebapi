@@ -114,6 +114,7 @@ Route::prefix('v1')->group(function () {
         });
 
         /* SOLICITUDES DE CITA del sitio web: quien tiene acceso a Facturación */
+        
         Route::middleware([$billing])->group(function () {
             Route::get('appointment-requests', [AppointmentRequestController::class, 'index']);
             Route::put('appointment-requests/{id}', [AppointmentRequestController::class, 'update'])->whereNumber('id');
