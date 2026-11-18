@@ -444,11 +444,14 @@ class CommonController
         }
 
         // Buscar nuevo turno. Cada cajero responde solo a sus turnos:
-        //  1) un turno pendiente que ya tenga asignado (desde el listado);
+        //  1) un turno pendiente que ya tenga asignado (desde el listado). Pero
+        //     si de esa misma especialidad hay uno SIN asignar que llegó antes
+        //     (se le olvidó asignárselo), se llama ese, el más viejo;
         //  2) si no tiene, uno pendiente SIN asignar.
         // Nunca toma un turno pendiente asignado a otro cajero.
         // En cada caso, primero los preferenciales y luego por orden de llegada.
-        $q = DB::transaction(function () use ($validated) {
+        $notice = '';
+        $q = DB::transaction(function () use ($validated, &$notice) {
 
             $baseQuery = QueueManager::whereBetween('created_at', [
                 Carbon::today()->startOfDay(),
@@ -463,8 +466,29 @@ class CommonController
                 ->lockForUpdate()
                 ->first();
 
-            $q = $next((clone $baseQuery)->where('assign_user_id', auth()->id()))
-                ?? $next((clone $baseQuery)->whereNull('assign_user_id'));
+            $q = $next((clone $baseQuery)->where('assign_user_id', auth()->id()));
+
+            if ($q) {
+                // ¿Un turno de la misma especialidad, sin asignar, que llegó antes?
+                $older = (clone $baseQuery)
+                    ->whereNull('assign_user_id')
+                    ->where('catalog_services_id', $q->catalog_services_id)
+                    ->where(fn ($w) => $w->where('created_at', '<', $q->created_at)
+                        ->orWhere(fn ($x) => $x->where('created_at', $q->created_at)->where('id', '<', $q->id)))
+                    // Un preferencial no se adelanta con uno normal más viejo.
+                    ->when($q->special_turn, fn ($w) => $w->where('special_turn', true))
+                    ->orderBy('created_at')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->first();
+                if ($older) {
+                    $notice = "Se llamó {$older->ticket} porque llegó antes que {$q->ticket}. "
+                        . "{$q->ticket} sigue asignado a ti para después.";
+                    $q = $older;
+                }
+            } else {
+                $q = $next((clone $baseQuery)->whereNull('assign_user_id'));
+            }
 
             if (! $q) {
                 return null;
@@ -488,7 +512,8 @@ class CommonController
 
         return response()->json([
             'isSuccess' => true,
-            'message' => '',
+            // Aviso informativo cuando se adelantó un turno más viejo (vacío si no).
+            'message' => $notice,
             'data' => $q
         ], 200);
     }
@@ -563,7 +588,7 @@ class CommonController
     public function getAllTicketsByLocation(Request $request)
     {
         return response()->json(
-            QueueManager::with('user.position', 'doctor.position', 'catalogServices:id,description')
+            QueueManager::with('user.position', 'doctor.position', 'catalogServices:id,description', 'patient:id,name,last_name')
                 ->where('location', $request->locationId)
                 ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])
                 ->orderBy('id', 'desc')
@@ -669,8 +694,16 @@ class CommonController
         try {
             $validated = $request->validate([
                 'ticketId' => 'required|integer',
-                'status' => 'required|string',
+                'status' => 'required|string|in:pending,called,skip,done',
             ]);
+
+            // Un turno terminado ya se facturó: no se vuelve a tocar.
+            if (QueueManager::where('id', $validated['ticketId'])->value('status') === 'done') {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Ese turno ya está terminado y no se puede modificar.',
+                ], 422);
+            }
 
             $data = DB::transaction(function () use ($validated) {
                 if ($validated['status'] == 'pending') {
@@ -782,6 +815,107 @@ class CommonController
         ]);
     }
 
+    /**
+     * Listado de turnos → cambiar el documento (y la persona) de un turno que
+     * se sacó mal en el kiosco. Solo turnos de hoy, de la sede del cajero, que
+     * estén pendientes o llamados. La persona debe ser el titular de ese
+     * documento o uno de sus dependientes; si el documento no está registrado,
+     * se guarda solo el documento y el paciente se registra al facturar.
+     */
+    public function updateTurnDocument(Request $request)
+    {
+        // Los espacios no cuentan (como en el kiosco): «001 1234567 8» = «00112345678».
+        $request->merge(['documentId' => str_replace(' ', '', (string) $request->input('documentId'))]);
+        $v = $request->validate([
+            'ticketId' => 'required|integer',
+            'documentId' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9-]+$/'],
+            'patientUserId' => 'nullable|integer',
+        ], [
+            'documentId.required' => 'Escribe el documento.',
+            'documentId.max' => 'El documento es demasiado largo.',
+            'documentId.regex' => 'El documento solo admite letras, números y guiones.',
+        ]);
+        $document = str_replace(' ', '', $v['documentId']);
+
+        $turn = QueueManager::find($v['ticketId']);
+        $user = auth()->user();
+        if (! $turn || (int) $turn->location !== (int) $user->user_locations_id
+            || ! Carbon::parse($turn->created_at)->isToday()) {
+            return response()->json(['isSuccess' => false, 'message' => 'No se encontró el turno en tu sede de hoy.'], 404);
+        }
+        if (! in_array($turn->status, ['pending', 'called'], true)) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Solo se puede cambiar el documento de un turno pendiente o llamado.',
+            ], 422);
+        }
+
+        // La persona del turno: el titular del documento o uno de sus dependientes.
+        $holder = User::where('document_number', $document)->first(['id', 'name', 'last_name']);
+        $patientUserId = null;
+        if (! empty($v['patientUserId'])) {
+            $allowed = $holder
+                ? User::where('id', $holder->id)->orWhere('dependent_of', $holder->id)->pluck('id')
+                : collect();
+            if (! $allowed->contains((int) $v['patientUserId'])) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Esa persona no corresponde al documento.',
+                ], 422);
+            }
+            $patientUserId = (int) $v['patientUserId'];
+        } elseif ($holder) {
+            $patientUserId = (int) $holder->id;
+        }
+
+        // Igual que el kiosco: no dos turnos activos de la misma persona para el mismo servicio.
+        $duplicate = QueueManager::whereBetween('created_at', [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()])
+            ->where('id', '!=', $turn->id)
+            ->where('patient_id', $document)
+            ->where('catalog_services_id', $turn->catalog_services_id)
+            ->whereIn('status', ['pending', 'called'])
+            ->when($patientUserId, fn ($q) => $q->where('patient_user_id', $patientUserId), fn ($q) => $q->whereNull('patient_user_id'))
+            ->value('ticket');
+        if ($duplicate) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => "Esa persona ya tiene el turno {$duplicate} para este servicio.",
+            ], 422);
+        }
+
+        $fullName = fn ($id) => ($u = $id ? User::find($id, ['id', 'name', 'last_name']) : null)
+            ? trim($u->name . ' ' . $u->last_name) : null;
+        $before = [
+            'document' => $turn->patient_id,
+            'patient_user_id' => $turn->patient_user_id,
+            'patient' => $fullName($turn->patient_user_id),
+        ];
+        if ($before['document'] === $document && (int) $before['patient_user_id'] === (int) $patientUserId) {
+            return response()->json(['isSuccess' => true, 'message' => 'Sin cambios.', 'data' => [
+                'id' => $turn->id, 'documentId' => $document, 'patientUserId' => $patientUserId, 'patientName' => $before['patient'],
+            ]]);
+        }
+
+        $turn->forceFill(['patient_id' => $document, 'patient_user_id' => $patientUserId])->save();
+
+        $name = $fullName($patientUserId);
+        $who = fn ($doc, $person) => ($person ?: 'sin paciente registrado') . " (doc. {$doc})";
+        AuditLog::record('turn.document_changed', 'queue_manager', $turn->id,
+            sprintf('Turno %s: pasó de %s a %s', $turn->ticket, $who($before['document'] ?: '—', $before['patient']), $who($document, $name)),
+            $before, ['document' => $document, 'patient_user_id' => $patientUserId, 'patient' => $name]);
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => "Turno {$turn->ticket} actualizado" . ($name ? ": ahora es de {$name}." : '. El documento no está registrado: el paciente se registra al facturar.'),
+            'data' => [
+                'id' => $turn->id,
+                'documentId' => $document,
+                'patientUserId' => $patientUserId,
+                'patientName' => $name,
+            ],
+        ]);
+    }
+
     public function updateTurnCashier(Request $request)
     {
         try {
@@ -794,6 +928,12 @@ class CommonController
             $turn = QueueManager::find($validated['ticketId']);
             if (! $turn) {
                 return response()->json(['isSuccess' => false, 'message' => 'No se encontró el turno.'], 404);
+            }
+            if ($turn->status === 'done') {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Ese turno ya está terminado y no se puede modificar.',
+                ], 422);
             }
             $eligible = BillingController::eligibleCashiers((int) $turn->location)
                 ->contains('id', (int) $validated['cashierId']);
