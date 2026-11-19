@@ -365,6 +365,30 @@ class AuthController extends Controller
             $documentTypeId = DocumentType::where('description', 'Menor sin documento')->value('id') ?? $documentTypeId;
         }
 
+        // Un documento no puede repetirse entre pacientes (mismo documento y mismo
+        // tipo de usuario). Los menores sin documento no cuentan. Al editar solo
+        // se valida si el documento cambia, para no trabar registros que ya
+        // estuvieran duplicados antes de esta regla.
+        $docChanged = ! $existing
+            || preg_replace('/\s+/', '', (string) $existing->document_number) !== preg_replace('/\s+/', '', (string) $documentId);
+        if ($documentId !== null && $documentId !== '' && $docChanged) {
+            $other = User::where('user_type_id', $validated['userTypeId'])
+                ->whereRaw("REPLACE(document_number, ' ', '') = ?", [preg_replace('/\s+/', '', $documentId)])
+                ->when($existing, fn ($q) => $q->where('id', '!=', $existing->id))
+                ->first(['id', 'name', 'last_name']);
+            if ($other) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => sprintf(
+                        'Ese número de documento ya pertenece al paciente %s (Reg. #%d). Búscalo y usa ese registro.',
+                        trim($other->name . ' ' . $other->last_name),
+                        $other->id
+                    ),
+                    'existingId' => $other->id,
+                ], 422);
+            }
+        }
+
         if (! empty($validated['holderId']) && (int) $validated['holderId'] === (int) $validated['id']) {
             return response()->json([
                 'isSuccess' => false,
