@@ -33,6 +33,18 @@ class CommonController
     private const SHIFT_CUTOFF = '10:15:00';
     private const SHIFT_WARN_MINUTES = 15;
 
+    /**
+     * Días sin turno de la tarde (ISO: 1 = lunes … 6 = sábado, 7 = domingo).
+     * Esos días se factura todo el día con todos los médicos, sin el corte
+     * de la mañana/tarde ni la alerta.
+     */
+    private const SHIFT_NO_SPLIT_DAYS = [6];
+
+    private function isNoSplitDay(Carbon $date): bool
+    {
+        return in_array($date->dayOfWeekIso, self::SHIFT_NO_SPLIT_DAYS, true);
+    }
+
     /** Momento en que la lista pasa a ser la del turno de la tarde. */
     private function shiftSwitchAt(Carbon $now): Carbon
     {
@@ -50,12 +62,17 @@ class CommonController
         $now = Carbon::now();
         $switchAt = $this->shiftSwitchAt($now);
 
+        $noSplit = $this->isNoSplitDay($now);
+
         return response()->json([
             'now' => $now->toIso8601String(),
             'cutoff' => substr(self::SHIFT_CUTOFF, 0, 5),
             'switch_at' => $switchAt->toIso8601String(),
             'warn_minutes' => self::SHIFT_WARN_MINUTES,
-            'shift' => $now->lt($switchAt) ? 'morning' : 'afternoon',
+            'shift' => $noSplit ? 'all_day' : ($now->lt($switchAt) ? 'morning' : 'afternoon'),
+            // Días sin turno de la tarde (ISO 1–7) y si hoy es uno de ellos.
+            'no_split_days' => self::SHIFT_NO_SPLIT_DAYS,
+            'split_today' => ! $noSplit,
         ]);
     }
 
@@ -188,8 +205,11 @@ class CommonController
                         )
                     ");
 
-                    // Turno de la mañana hasta las 11:00:59; luego, el de la tarde.
-                    if ($now->lt($this->shiftSwitchAt($now))) {
+                    // Turno de la mañana hasta el corte; luego, el de la tarde.
+                    // Los días sin turno de la tarde (sábado) no hay corte: todos.
+                    if ($this->isNoSplitDay($now)) {
+                        // sin filtro de hora
+                    } elseif ($now->lt($this->shiftSwitchAt($now))) {
                         $q->where('start_time', '<', self::SHIFT_CUTOFF);
                     } else {
                         $q->where('start_time', '>=', self::SHIFT_CUTOFF);
