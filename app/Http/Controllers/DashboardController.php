@@ -16,7 +16,9 @@ use Illuminate\Support\Facades\Schema;
  * Inicio: tablero con los números del día (o del período elegido).
  *
  * Lo puede ver cualquier usuario con sesión. Solo devuelve totales y
- * agrupaciones; no incluye nombres de pacientes ni datos clínicos.
+ * agrupaciones; no incluye nombres de pacientes ni datos clínicos. La
+ * excepción es doctorsPatients() (CSV de «Médicos con más pacientes»), que
+ * solo pueden usar Facturación, Contabilidad y administración.
  */
 class DashboardController extends Controller
 {
@@ -102,6 +104,7 @@ class DashboardController extends Controller
             'services' => $this->top($inv, 'catalog_services_id', $names('catalog_services', $inv->pluck('catalog_services_id'))),
             'doctors' => $this->top($inv, 'doctor_id', $people($inv->pluck('doctor_id'))),
             'cashiers' => $this->cashiers($inv, $pay, $people),
+            'attention' => $this->attention($inv, $people),
             'open_cash' => $this->openCash($people),
             'ars' => $this->ars($names),
             'queue' => $this->queue($from, $to),
@@ -333,6 +336,162 @@ class DashboardController extends Controller
             'unclaimed' => round($receivable->sum('unclaimed'), 2),
             'claims' => $claims,
         ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Tiempo de atención y CSV de médicos                                 */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Turno de cada factura: por queue_manager_id si la columna existe y está
+     * llena; si no, el turno del mismo paciente y médico de ese día sacado
+     * antes de la factura (el más reciente que no se haya usado).
+     *
+     * @return array<int, object{ticket: string, created_at: string}>
+     */
+    private function ticketsByInvoice(Collection $inv): array
+    {
+        if ($inv->isEmpty()) {
+            return [];
+        }
+        $map = [];
+        if (Schema::hasColumn('in_invoices', 'queue_manager_id')) {
+            $links = DB::table('in_invoices')->whereIn('id', $inv->pluck('id'))->whereNotNull('queue_manager_id')
+                ->pluck('queue_manager_id', 'id');
+            $q = $links->isEmpty() ? collect()
+                : DB::table('queue_managers')->whereIn('id', $links->values()->unique())->get(['id', 'ticket', 'created_at'])->keyBy('id');
+            foreach ($links as $invId => $qid) {
+                if (isset($q[$qid])) {
+                    $map[$invId] = $q[$qid];
+                }
+            }
+        }
+
+        $missing = $inv->reject(fn ($i) => isset($map[$i->id]));
+        if ($missing->isNotEmpty()) {
+            $from = Carbon::parse($missing->min('created_at'))->startOfDay();
+            $to = Carbon::parse($missing->max('created_at'))->endOfDay();
+            $cand = DB::table('queue_managers')->whereBetween('created_at', [$from, $to])
+                ->whereIn('patient_user_id', $missing->pluck('patient_id')->filter()->unique())
+                ->orderBy('created_at')->get(['id', 'ticket', 'patient_user_id', 'doctor_id', 'created_at'])
+                ->groupBy('patient_user_id');
+            $used = collect($map)->pluck('id')->flip()->all();
+            foreach ($missing->sortBy('created_at') as $i) {
+                $at = Carbon::parse($i->created_at);
+                $best = null;
+                foreach ($cand[$i->patient_id] ?? [] as $t) {
+                    $tAt = Carbon::parse($t->created_at);
+                    if (isset($used[$t->id]) || ! $tAt->isSameDay($at) || $tAt->gt($at)) {
+                        continue;
+                    }
+                    // Mismo médico primero; si no, el último turno del paciente ese día.
+                    if (! $best || ((int) $t->doctor_id === (int) $i->doctor_id) >= ((int) $best->doctor_id === (int) $i->doctor_id)) {
+                        $best = $t;
+                    }
+                }
+                if ($best) {
+                    $map[$i->id] = $best;
+                    $used[$best->id] = true;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Tiempo promedio por usuario (cajero) entre que se sacó el turno y se
+     * facturó. Es aproximado: incluye la espera del paciente, porque el
+     * sistema no guarda la hora exacta en que se llamó el turno.
+     */
+    private function attention(Collection $inv, \Closure $people): array
+    {
+        $tickets = $this->ticketsByInvoice($inv);
+        $mins = $inv->filter(fn ($i) => $i->created_by && isset($tickets[$i->id]))
+            ->map(fn ($i) => [
+                'user' => (int) $i->created_by,
+                'm' => Carbon::parse($tickets[$i->id]->created_at)->diffInMinutes(Carbon::parse($i->created_at), false),
+            ])
+            ->filter(fn ($x) => $x['m'] >= 0 && $x['m'] <= 480); // fuera de rango: datos raros
+        $n = $people($mins->pluck('user')->unique());
+
+        return $mins->groupBy('user')->map(fn ($g, $id) => [
+            'name' => $n[$id] ?? '#' . $id,
+            'patients' => $g->count(),
+            'avg_minutes' => (int) round($g->avg('m')),
+        ])->sortByDesc('patients')->values()->all();
+    }
+
+    /** Edad para el reporte: «3 MESES», «1 AÑO», «45 AÑOS». */
+    private function ageLabel(?string $birth, Carbon $at): string
+    {
+        if (! $birth) {
+            return '';
+        }
+        $b = Carbon::parse($birth);
+        $years = (int) $b->diffInYears($at);
+        if ($years >= 1) {
+            return $years . ($years === 1 ? ' AÑO' : ' AÑOS');
+        }
+        $months = max(0, (int) $b->diffInMonths($at));
+
+        return $months . ($months === 1 ? ' MES' : ' MESES');
+    }
+
+    /**
+     * Inicio → «Médicos con más pacientes» → CSV: una fila por paciente
+     * facturado en el período, agrupado por médico. Solo Facturación,
+     * Contabilidad y administración (incluye nombres de pacientes).
+     */
+    public function doctorsPatients(Request $request)
+    {
+        $request->validate([
+            'from' => 'nullable|date_format:Y-m-d',
+            'to' => 'nullable|date_format:Y-m-d',
+        ]);
+        $canSeeMoney = RequireAccess::allows($request->user(), array_merge(
+            BillingAccess::RULES,
+            ['accounting.view', 'accounting.manage']
+        ));
+        if (! $canSeeMoney) {
+            return response()->json(['isSuccess' => false, 'message' => 'No tienes permiso para descargar este reporte.'], 403);
+        }
+
+        $from = Carbon::parse($request->input('from') ?: now()->toDateString())->startOfDay();
+        $to = Carbon::parse($request->input('to') ?: $from->toDateString())->endOfDay();
+        if ($to->lt($from)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
+        if ($from->diffInDays($to) > 366) {
+            $from = $to->copy()->subDays(366)->startOfDay();
+        }
+
+        $inv = $this->invoices($from, $to);
+        $tickets = $this->ticketsByInvoice($inv);
+        $users = DB::table('users')
+            ->whereIn('id', $inv->pluck('patient_id')->merge($inv->pluck('doctor_id'))->merge($inv->pluck('created_by'))->filter()->unique())
+            ->get(['id', 'name', 'last_name', 'birth_date'])->keyBy('id');
+        $full = fn ($id) => isset($users[$id]) ? trim($users[$id]->name . ' ' . $users[$id]->last_name) : '';
+
+        $rows = $inv->map(fn ($i) => [
+            'doctor' => $full($i->doctor_id),
+            'ticket' => $tickets[$i->id]->ticket ?? '',
+            'record' => $i->patient_id,
+            'age' => $this->ageLabel($users[$i->patient_id]->birth_date ?? null, Carbon::parse($i->created_at)),
+            'patient' => $full($i->patient_id),
+            'cashier' => $full($i->created_by),
+            'at' => (string) $i->created_at,
+        ])
+            ->sortBy([['doctor', 'asc'], ['ticket', 'asc'], ['at', 'asc']])
+            ->groupBy('doctor')
+            ->flatMap(fn ($g) => $g->values()->map(fn ($r, $k) => ['no' => $k + 1] + $r))
+            ->values();
+
+        return response()->json([
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'rows' => $rows,
+        ]);
     }
 
     private function queue(Carbon $from, Carbon $to): array

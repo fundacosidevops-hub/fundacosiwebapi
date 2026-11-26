@@ -73,6 +73,8 @@ Route::prefix('v1')->group(function () {
         Route::get('profile', [AuthController::class, 'profile']);
         /* INICIO (tablero): cualquier usuario; los montos solo con acceso (ver controlador) */
         Route::get('dashboard', [DashboardController::class, 'summary']);
+        // CSV de «Médicos con más pacientes» (el controlador valida el permiso).
+        Route::get('dashboard/doctors-patients', [DashboardController::class, 'doctorsPatients']);
         /* Catálogos de referencia (sin datos personales) */
         Route::get('positions', [AuthController::class, 'positions']);
         Route::get('common/get-user-locations', [CommonController::class, 'getUserLocations']);
