@@ -69,7 +69,7 @@ class DashboardController extends Controller
         if (! $canSeeMoney) {
             $k = $this->kpis($inv, $prev, $pay);
             $countsOnly = fn (array $rows) => array_map(
-                fn ($r) => ['name' => $r['name'], 'invoices' => $r['invoices'], 'gross' => 0],
+                fn ($r) => ['name' => $r['name'], 'avatar' => $r['avatar'] ?? null, 'invoices' => $r['invoices'], 'gross' => 0],
                 $rows
             );
 
@@ -85,7 +85,7 @@ class DashboardController extends Controller
                 ],
                 'hours' => $this->hours($inv),
                 'services' => $countsOnly($this->top($inv, 'catalog_services_id', $names('catalog_services', $inv->pluck('catalog_services_id')))),
-                'doctors' => $countsOnly($this->top($inv, 'doctor_id', $people($inv->pluck('doctor_id')))),
+                'doctors' => $countsOnly($this->top($inv, 'doctor_id', $people($inv->pluck('doctor_id')), 6, true)),
                 'queue' => $this->queue($from, $to),
                 'clinical' => $this->clinical($from, $to),
             ]);
@@ -102,7 +102,7 @@ class DashboardController extends Controller
             'methods' => $this->methods($pay),
             'insurances' => $this->insurances($inv, $names),
             'services' => $this->top($inv, 'catalog_services_id', $names('catalog_services', $inv->pluck('catalog_services_id'))),
-            'doctors' => $this->top($inv, 'doctor_id', $people($inv->pluck('doctor_id'))),
+            'doctors' => $this->top($inv, 'doctor_id', $people($inv->pluck('doctor_id')), 6, true),
             'cashiers' => $this->cashiers($inv, $pay, $people),
             'attention' => $this->attention($inv, $people),
             'open_cash' => $this->openCash($people),
@@ -230,14 +230,17 @@ class DashboardController extends Controller
             ->sortByDesc('coverage')->values()->all();
     }
 
-    private function top(Collection $inv, string $col, Collection $names, int $limit = 6): array
+    private function top(Collection $inv, string $col, Collection $names, int $limit = 6, bool $withAvatar = false): array
     {
+        $avatars = $withAvatar ? $this->avatars($inv->pluck($col)) : collect();
+
         return $inv->filter(fn ($r) => $r->$col)->groupBy($col)
-            ->map(fn ($g, $id) => [
+            ->map(fn ($g, $id) => array_filter([
                 'name' => $names[$id] ?? '#' . $id,
+                'avatar' => $withAvatar ? ($avatars[$id] ?? null) : false,
                 'invoices' => $g->count(),
                 'gross' => round($g->sum(fn ($r) => (float) $r->subtotal), 2),
-            ])
+            ], fn ($v) => $v !== false))
             ->sortByDesc('invoices')->take($limit)->values()->all();
     }
 
@@ -252,13 +255,16 @@ class DashboardController extends Controller
             ->map(fn ($g) => round($g->sum(fn ($r) => (float) $r->amount), 2));
         $ids = $inv->pluck('created_by')->merge($collected->keys())->filter()->unique();
         $n = $people($ids);
+        $av = $this->avatars($ids);
 
         return $ids->map(fn ($id) => [
             'name' => $n[$id] ?? '#' . $id,
+            'avatar' => $av[$id] ?? null,
             'invoices' => $inv->where('created_by', $id)->count(),
             'billed' => round($inv->where('created_by', $id)->sum(fn ($r) => (float) $r->total), 2),
             'collected' => $collected[$id] ?? 0,
-        ])->sortByDesc('billed')->values()->all();
+        ])->sort(fn ($a, $b) => [$b['billed'], $b['invoices'], $a['name']] <=> [$a['billed'], $a['invoices'], $b['name']])
+            ->values()->all(); // de quien más ha facturado a quien menos
     }
 
     private function openCash(\Closure $people): array
@@ -276,11 +282,14 @@ class DashboardController extends Controller
             ->select('p.cash_session_id', 'm.code', DB::raw('SUM(p.amount) as amount'), DB::raw('COUNT(*) as c'))
             ->groupBy('p.cash_session_id', 'm.code')->get()->groupBy('cash_session_id');
 
-        return $open->map(function ($s) use ($n, $cash) {
+        $av = $this->avatars($open->pluck('user_id'));
+
+        return $open->map(function ($s) use ($n, $cash, $av) {
             $rows = $cash[$s->id] ?? collect();
 
             return [
                 'name' => $n[$s->user_id] ?? '#' . $s->user_id,
+                'avatar' => $av[$s->user_id] ?? null,
                 'opened_at' => $s->opened_at,
                 'opening' => (float) $s->opening_amount,
                 'cash' => round((float) $rows->where('code', 'cash')->sum('amount'), 2),
@@ -414,12 +423,25 @@ class DashboardController extends Controller
             ])
             ->filter(fn ($x) => $x['m'] >= 0 && $x['m'] <= 480); // fuera de rango: datos raros
         $n = $people($mins->pluck('user')->unique());
+        $av = $this->avatars($mins->pluck('user'));
 
         return $mins->groupBy('user')->map(fn ($g, $id) => [
             'name' => $n[$id] ?? '#' . $id,
+            'avatar' => $av[$id] ?? null,
             'patients' => $g->count(),
             'avg_minutes' => (int) round($g->avg('m')),
         ])->sortByDesc('patients')->values()->all();
+    }
+
+    /** Foto de perfil (ruta «avatars/…») por id de usuario; solo las que existen. */
+    private function avatars(Collection $ids): Collection
+    {
+        $ids = $ids->filter()->unique()->values();
+        if ($ids->isEmpty() || ! Schema::hasColumn('users', 'avatar')) {
+            return collect();
+        }
+
+        return DB::table('users')->whereIn('id', $ids)->whereNotNull('avatar')->pluck('avatar', 'id');
     }
 
     /** Edad para el reporte: «3 MESES», «1 AÑO», «45 AÑOS». */
